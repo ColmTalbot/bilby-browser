@@ -1,6 +1,6 @@
 // Runs Pyodide and bilby off the main thread. Messages:
 //   in:  {type: "run", path, code, files, testMode}
-//   out: {type: "status" | "ready" | "info" | "stream" | "image" | "done" | "error", ...}
+//   out: {type: "status" | "ready" | "info" | "stream" | "image" | "results" | "done" | "error", ...}
 // The page stops a run by terminating this worker and starting a new one.
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js");
 
@@ -98,9 +98,20 @@ async function run({ path, code, files, testMode }) {
     // show figures even if the example failed part way through
     py("show")();
     py("send_new_images")(since);
+    sendResults(path, since);
     globals.destroy();
   }
   post("done", { seconds: (performance.now() - start) / 1000 });
+}
+
+// everything the run wrote (results, figures, data), zipped for download
+function sendResults(path, since) {
+  const stem = path.split("/").pop().replace(/\.py$/, "");
+  const zipped = py("zip_new_files")(since, stem + "_results");
+  if (!zipped) return;
+  const [bytes, count] = zipped.toJs();
+  zipped.destroy();
+  postMessage({ type: "results", name: stem + "_results.zip", bytes, count }, [bytes.buffer]);
 }
 
 const ready = init().catch((err) => post("error", { text: String(err.stack || err), fatal: true }));

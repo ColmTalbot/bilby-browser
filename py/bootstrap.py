@@ -270,20 +270,42 @@ def prepare(path):
     return {"__name__": "__main__", "__file__": os.path.join(EXAMPLES_ROOT, path)}
 
 
-def send_new_images(since):
-    """Send PNG files written under the current directory after `since`."""
-    import _site
-
+def _new_files(since):
+    """Files written under the current directory after `since`, sorted."""
     found = []
     for root, _, files in os.walk("."):
         for name in files:
             path = os.path.join(root, name)
-            if name.lower().endswith(".png") and os.path.getmtime(path) >= since:
-                found.append(path)
-    for path in sorted(found):
+            if os.path.getmtime(path) >= since:
+                found.append(os.path.normpath(path))
+    return sorted(found)
+
+
+def send_new_images(since):
+    """Send PNG files written under the current directory after `since`."""
+    import _site
+
+    found = [path for path in _new_files(since) if path.lower().endswith(".png")]
+    for path in found:
         with open(path, "rb") as f:
-            _site.image(os.path.normpath(path), base64.b64encode(f.read()).decode())
+            _site.image(path, base64.b64encode(f.read()).decode())
     return len(found)
+
+
+def zip_new_files(since, folder):
+    """Zip the files written under the current directory after `since`, inside
+    `folder`. Returns (zip bytes, number of files), or None if there are none."""
+    import io
+    import zipfile
+
+    found = _new_files(since)
+    if not found:
+        return None
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in found:
+            archive.write(path, os.path.join(folder, path))
+    return buffer.getvalue(), len(found)
 
 
 def now():

@@ -128,6 +128,45 @@ function showImage(name, b64) {
   line = null;
 }
 
+// Save a Blob as a file.
+function save(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// The files a run wrote, zipped by the worker: a link in the run's output,
+// and the Results button for the latest run.
+let latestResults = null;
+const resultUrls = [];
+function showResults({ name, bytes, count }) {
+  const blob = new Blob([bytes], { type: "application/zip" });
+  latestResults = { blob, name };
+  $("download-results").disabled = false;
+  const url = URL.createObjectURL(blob);
+  resultUrls.push(url);
+  scrolled(() => {
+    const pre = document.createElement("pre");
+    pre.className = "info";
+    pre.textContent = `${count} file${count === 1 ? "" : "s"} written`;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.textContent = `download ${name} (${formatSize(blob.size)})`;
+    pre.appendChild(link);
+    block.appendChild(pre);
+  });
+  line = null;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} kB`;
+  return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+}
+
 // a figure enlarged over the page, with a download link
 function openFigure(src, name) {
   const box = $("lightbox");
@@ -165,6 +204,9 @@ function startWorker() {
         break;
       case "image":
         showImage(data.name, data.b64);
+        break;
+      case "results":
+        showResults(data);
         break;
       case "done":
         append(`finished in ${data.seconds.toFixed(1)} s`, "info");
@@ -375,6 +417,15 @@ $("clear").addEventListener("click", () => {
   output.innerHTML = "";
   block = output;
   line = null;
+  resultUrls.splice(0).forEach((url) => URL.revokeObjectURL(url));
+  latestResults = null;
+  $("download-results").disabled = true;
+});
+$("download-results").addEventListener("click", () => {
+  if (latestResults) save(latestResults.blob, latestResults.name);
+});
+$("download-script").addEventListener("click", () => {
+  if (current) save(new Blob([editor.getValue()], { type: "text/x-python" }), current.path.split("/").pop());
 });
 $("copy").addEventListener("click", async () => {
   // open collapsed runs so their text is included
