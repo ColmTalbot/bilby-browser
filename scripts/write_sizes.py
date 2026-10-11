@@ -27,7 +27,17 @@ CORE = ["pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json"]
 def head_size(url):
     request = urllib.request.Request(url, method="HEAD")
     with urllib.request.urlopen(request, timeout=30) as response:
-        return int(response.headers["Content-Length"])
+        length = response.headers["Content-Length"]
+    if length is not None:
+        return int(length)
+    # Some CDN edges answer HEAD without a length; the total size is also in
+    # the Content-Range of a one-byte request.
+    request = urllib.request.Request(url, headers={"Range": "bytes=0-0"})
+    with urllib.request.urlopen(request, timeout=30) as response:
+        content_range = response.headers["Content-Range"]
+    if content_range is None:
+        raise OSError(f"no size for {url}")
+    return int(content_range.rsplit("/", 1)[1])
 
 
 def pyodide_sizes(version, names):
