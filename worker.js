@@ -1,6 +1,7 @@
 // Runs Pyodide and bilby off the main thread. Messages:
 //   in:  {type: "run", path, code, files, testMode, logLevel}
-//   out: {type: "status" | "progress" | "ready" | "info" | "stream" | "image" | "results" | "done" | "error", ...}
+//   in:  {type: "read", path}  (a file the run wrote; answered with "file")
+//   out: {type: "status" | "progress" | "ready" | "info" | "stream" | "image" | "files" | "file" | "results" | "done" | "error", ...}
 // The page stops a run by terminating this worker and starting a new one.
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js");
 
@@ -14,6 +15,7 @@ function stream(kind) {
   return {
     write(buffer) {
       post("stream", { kind, text: decoder.decode(buffer, { stream: true }) });
+      watchFiles();
       return buffer.length;
     },
   };
@@ -130,7 +132,9 @@ async function init() {
     pyodide = await loadPyodide();
     pyodide.setStdout(stream("stdout"));
     pyodide.setStderr(stream("stderr"));
-    pyodide.registerJsModule("_site", { image: (name, b64) => post("image", { name, b64 }) });
+    pyodide.registerJsModule("_site", {
+      image: (name, b64) => { post("image", { name, b64 }); watchFiles(); },
+    });
     pyodide.runPython(await fetchText("py/bootstrap.py", "Python setup code"));
     py("add_module")("gwosc_range", await fetchText("py/gwosc_range.py", "Python setup code"));
     const urls = {};
@@ -162,6 +166,7 @@ const needsLalsuite = (path, code) =>
 
 async function run({ path, code, files, testMode, logLevel = "ERROR" }) {
   const start = performance.now();
+  watched = null;
   if (needsLalsuite(path, code)) {
     await installLalsuite();
     post("status", { text: `Running ${path}…` });
@@ -181,12 +186,14 @@ async function run({ path, code, files, testMode, logLevel = "ERROR" }) {
     pyodide.FS.writeFile(name, new Uint8Array(await response.arrayBuffer()));
   }
   const since = py("now")();
+  watched = { dir: pyodide.FS.cwd(), since: since * 1000, seen: new Map(), last: 0 };
+  post("files", { files: [], reset: true });
   try {
     await pyodide.runPythonAsync(code, { globals, filename: path });
   } finally {
     // show figures even if the example failed part way through
     py("show")();
-    py("send_new_images")(since);
+    watchFiles(true);
     sendResults(path, since);
     globals.destroy();
   }
@@ -203,10 +210,70 @@ function sendResults(path, since) {
   postMessage({ type: "results", name: stem + "_results.zip", bytes, count }, [bytes.buffer]);
 }
 
+// ---- files the run writes -------------------------------------------------
+// While Python runs, this thread cannot answer messages, so the files the
+// run writes (checkpoint plots, resume files, results) are sent to the page
+// as they change: whenever Python prints (samplers report progress often) at
+// most every WATCH_INTERVAL ms, and once more at the end. The page keeps
+// them, so they outlast Stop. Larger files are read on request after the run.
+
+const WATCH_INTERVAL = 2000;
+const PUSH_LIMIT = 5 * 1024 ** 2;
+let watched = null; // {dir, since (ms), seen: path -> "mtime:size", last}
+
+function listFiles(dir, since, prefix = "", found = []) {
+  const FS = pyodide.FS;
+  for (const name of FS.readdir(dir)) {
+    if (name === "." || name === "..") continue;
+    const full = dir + "/" + name;
+    const stat = FS.stat(full);
+    if (FS.isDir(stat.mode)) listFiles(full, since, prefix + name + "/", found);
+    else if (FS.isFile(stat.mode) && +stat.mtime >= since) {
+      found.push({ path: prefix + name, size: stat.size, mtime: +stat.mtime });
+    }
+  }
+  return found;
+}
+
+function watchFiles(force = false) {
+  if (!watched) return;
+  const now = performance.now();
+  if (!force && now - watched.last < WATCH_INTERVAL) return;
+  watched.last = now;
+  let files;
+  try {
+    files = listFiles(watched.dir, watched.since);
+  } catch {
+    return; // the directory was removed or renamed part way through
+  }
+  post("files", { files });
+  for (const file of files) {
+    const key = `${file.mtime}:${file.size}`;
+    if (watched.seen.get(file.path) === key || file.size > PUSH_LIMIT) continue;
+    watched.seen.set(file.path, key);
+    sendFile(file);
+  }
+}
+
+function sendFile({ path }) {
+  const full = watched.dir + "/" + path;
+  try {
+    const mtime = +pyodide.FS.stat(full).mtime;
+    const bytes = pyodide.FS.readFile(full);
+    postMessage({ type: "file", path, mtime, bytes }, [bytes.buffer]);
+  } catch {
+    post("file", { path, missing: true });
+  }
+}
+
 const ready = init().catch((err) => post("error", { text: String(err.stack || err), fatal: true }));
 
 self.onmessage = async ({ data }) => {
   await ready;
+  if (data.type === "read") {
+    if (watched) sendFile({ path: data.path });
+    return;
+  }
   if (data.type !== "run") return;
   try {
     await run(data);

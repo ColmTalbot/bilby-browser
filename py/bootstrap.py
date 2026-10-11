@@ -411,15 +411,10 @@ def _new_files(since):
     return sorted(found)
 
 
-def send_new_images(since):
-    """Send PNG files written under the current directory after `since`."""
-    import _site
-
-    found = [path for path in _new_files(since) if path.lower().endswith(".png")]
-    for path in found:
-        with open(path, "rb") as f:
-            _site.image(path, base64.b64encode(f.read()).decode())
-    return len(found)
+def count_new_images(since):
+    """Number of PNG files written under the current directory after `since`
+    (the page shows them in its Files tab, not in the output)."""
+    return sum(path.lower().endswith(".png") for path in _new_files(since))
 
 
 def zip_new_files(since, folder):

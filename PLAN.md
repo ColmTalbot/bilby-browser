@@ -18,8 +18,16 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
     blank editor (`#scratch`, kept per browser); Download saves the script.
   - Output: each run is a collapsible block; progress bars rewrite in place,
     and tqdm lines are drawn as bars like tqdm's Jupyter one (filled when
-    tqdm knows the total); figures enlarge on click and download; Copy copies
-    the text; Results downloads a zip of every file the run wrote.
+    tqdm knows the total); figures shown with `plt.show()` enlarge on click
+    and download; Copy copies the text; Results downloads a zip of every file
+    the run wrote.
+  - Files tab (next to Output): the files the latest run wrote (checkpoint
+    plots, resume files, results), with a preview (images, text) and
+    download. While Python runs the worker cannot answer messages, so it
+    sends files as they change, whenever Python prints (at most every 2 s)
+    and at the end; files over 5 MB are read on request after the run. The
+    page keeps them, so they outlast Stop. Saved PNGs are no longer copied
+    into the output.
   - Stop terminates the worker and starts a new one.
   - Header: toggles for the sidebar, editor and output (never both panes
     hidden; remembered per browser), bilby-dev logo, status, test-mode switch

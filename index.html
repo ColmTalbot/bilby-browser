@@ -225,6 +225,44 @@
             border: 1px solid var(--border); border-radius: 8px;
             background: var(--panel);
             font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  /* Output / Files tabs in the output toolbar */
+  .tabs { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--panel);
+          border: 1px solid var(--border); flex: none; }
+  .tabs button { border: none; background: transparent; padding: 3px 10px; border-radius: 6px;
+                 color: var(--muted); }
+  .tabs button[aria-selected="true"] { background: var(--bg); color: var(--fg); font-weight: 600;
+                                       box-shadow: 0 0 0 1px var(--border); }
+  .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #file-count { font-variant-numeric: tabular-nums; }
+  #file-count:not(:empty)::before { content: " · "; }
+  #output-pane.files-tab .output-only, #output-pane .hint.long { display: none; }
+  @media (min-width: 1300px) { #output-pane:not(.files-tab) .hint.long { display: inline; } }
+  #files { flex: 1; min-height: 320px; display: flex; flex-direction: column; overflow: hidden;
+           border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+  #files[hidden] { display: none; }
+  body.test-mode #files { border-color: var(--warn-border); }
+  #file-list { flex: none; max-height: 38%; overflow: auto; padding: 6px; border-bottom: 1px solid var(--border);
+               font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; scrollbar-width: thin; }
+  #file-list:empty::before { content: "No files yet: the files a run writes (checkpoint plots, results) appear here as they change.";
+                             display: block; padding: 6px; color: var(--muted); font-family: system-ui, sans-serif; }
+  #file-list button { display: flex; width: 100%; gap: 10px; align-items: baseline; text-align: left;
+                      font: inherit; padding: 3px 8px; border: none; border-radius: 5px; background: transparent; }
+  #file-list button:hover { background: var(--bg); }
+  #file-list button[aria-current="true"] { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+  #file-list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #file-list .dir { color: var(--muted); }
+  #file-list .meta { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #file-view { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px; }
+  #file-view:empty::before { content: "Pick a file to see it."; color: var(--muted); font-size: 12px; }
+  #file-view .head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;
+                     font-size: 12px; color: var(--muted); }
+  #file-view .head strong { color: var(--fg); font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+                            word-break: break-all; }
+  #file-view .head button { padding: 3px 8px; font-size: 12px; }
+  #file-view img { max-width: 100%; background: #fff; border-radius: 6px; cursor: zoom-in; display: block; }
+  #file-view pre { margin: 0; white-space: pre-wrap; word-break: break-word;
+                   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #file-view p { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
   #output pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
   #output .stderr { color: var(--muted); }
   /* tqdm progress lines, drawn as bars (render() in app.js) */
@@ -251,6 +289,7 @@
   #output img { max-width: 100%; background: #fff; border-radius: 6px; cursor: zoom-in; }
   #output figcaption { font-size: 11px; color: var(--muted); }
   #output figcaption a, #output .info a { color: var(--muted); margin-left: 8px; }
+  #output .info a.files-link { color: var(--accent); margin-left: 0; }
   #lightbox { border: none; padding: 0; background: transparent; max-width: 96vw; max-height: 96vh; }
   #lightbox::backdrop { background: rgba(0, 0, 0, 0.75); }
   #lightbox img { display: block; max-width: 96vw; max-height: 88vh; background: #fff;
@@ -288,8 +327,7 @@
     .toolbar button { padding: 8px 12px; }
     #run { margin-left: auto; }
     #code { flex: none; height: 60vh; min-height: 260px; }
-    #output { min-height: 50vh; }
-    #output-pane .hint .long { display: none; }
+    #output, #files { min-height: 50vh; }
   }
   @media (max-width: 700px) and (prefers-reduced-motion: reduce) { nav { transition: none; } }
 </style>
@@ -365,13 +403,23 @@
          aria-valuemin="20" aria-valuemax="80" aria-valuenow="50" aria-label="Width of the editor"
          title="Drag (or use the arrow keys) to resize; double-click or Home to reset"></div>
     <div class="toolbar">
-      <span class="hint">Output<span class="long"> (runs in your browser with Pyodide; one CPU core)</span></span>
+      <div class="tabs" role="tablist" aria-label="Output or files">
+        <button role="tab" id="tab-output" aria-selected="true" aria-controls="output"
+                title="Output (runs in your browser with Pyodide; one CPU core)">Output</button>
+        <button role="tab" id="tab-files" aria-selected="false" aria-controls="files" tabindex="-1"
+                title="The files the last run wrote, updated while it runs">Files<span id="file-count"></span></button>
+      </div>
+      <span class="hint long">runs in your browser with Pyodide; one CPU core</span>
       <span class="spacer"></span>
       <button id="download-results" title="Download the files the last run wrote, as a zip" disabled>Results</button>
-      <button id="copy" title="Copy all output as text">Copy</button>
-      <button id="clear">Clear</button>
+      <button id="copy" class="output-only" title="Copy all output as text">Copy</button>
+      <button id="clear" class="output-only">Clear</button>
     </div>
-    <div id="output" tabindex="0" aria-label="Program output"></div>
+    <div id="output" role="tabpanel" aria-labelledby="tab-output" tabindex="0" aria-label="Program output"></div>
+    <div id="files" role="tabpanel" aria-labelledby="tab-files" hidden>
+      <div id="file-list" aria-label="Files written by the run"></div>
+      <div id="file-view" tabindex="0" aria-label="File preview" aria-live="off"></div>
+    </div>
     <!-- run started, finished or failed, for screen readers; the output itself
          is not a live region, since every line of it would be read out -->
     <div id="announce" class="sr-only" role="status" aria-live="polite"></div>

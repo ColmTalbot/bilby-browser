@@ -86,7 +86,7 @@ for (const path of examples) {
   try {
     await pyodide.runPythonAsync(code, { globals });
     py("show")();
-    py("send_new_images")(since);
+    images += py("count_new_images")(since);
     console.log(`=== ${path}: ok in ${((performance.now() - start) / 1000).toFixed(1)} s`);
   } catch (err) {
     failed++;

@@ -209,7 +209,13 @@ function showResults({ name, bytes, count }) {
   scrolled(() => {
     const pre = document.createElement("pre");
     pre.className = "info";
-    pre.textContent = `${count} file${count === 1 ? "" : "s"} written`;
+    const tab = document.createElement("a");
+    tab.href = "#";
+    tab.className = "files-link";
+    tab.textContent = `${count} file${count === 1 ? "" : "s"} written`;
+    tab.title = "See them in the Files tab";
+    tab.addEventListener("click", (e) => { e.preventDefault(); showTab("files", true); });
+    pre.appendChild(tab);
     const link = document.createElement("a");
     link.href = url;
     link.download = name;
@@ -245,6 +251,173 @@ function openFigure(src, name) {
 }
 $("lightbox").addEventListener("click", (e) => { if (e.target.tagName !== "A") $("lightbox").close(); });
 
+// ---- files tab -------------------------------------------------------------
+// The files the latest run wrote, as the worker reports them while it runs
+// (worker.js, watchFiles): a list, and a preview of the one picked, which
+// follows its updates (a checkpoint plot redrawn by the sampler, say).
+
+const files = new Map(); // path -> {size, mtime, bytes?, url?, missing?}
+let shownFile = null;
+let workerHasFiles = false; // false once Stop has replaced the worker
+
+const IMAGE_TYPES = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
+                      svg: "image/svg+xml", webp: "image/webp" };
+const TEXT_LIMIT = 200 * 1024;
+const extension = (path) => (path.match(/\.(\w+)$/)?.[1] || "").toLowerCase();
+
+function setFileList(list, reset = false) {
+  if (reset) {
+    for (const file of files.values()) if (file.url) URL.revokeObjectURL(file.url);
+    files.clear();
+    shownFile = null;
+    workerHasFiles = true;
+  }
+  for (const { path, size, mtime } of list) {
+    const file = files.get(path) || {};
+    // a file too large to send while running (PUSH_LIMIT in worker.js) is
+    // read again after the run if it changed
+    if (file.bytes && mtime !== file.mtime && size > 5 * 1024 ** 2) {
+      delete file.bytes;
+      if (file.url) URL.revokeObjectURL(file.url);
+      file.url = null;
+    }
+    files.set(path, { ...file, size, mtime });
+  }
+  drawFileList();
+  if (reset) drawFile();
+}
+
+function receiveFile({ path, mtime, bytes, missing }) {
+  const file = files.get(path);
+  if (!file) return;
+  if (file.url) URL.revokeObjectURL(file.url);
+  file.url = null;
+  file.missing = Boolean(missing);
+  if (bytes) {
+    file.bytes = bytes;
+    file.size = bytes.length;
+    file.mtime = mtime;
+  }
+  drawFileList();
+  if (path === shownFile) drawFile();
+}
+
+function fileUrl(path) {
+  const file = files.get(path);
+  file.url ||= URL.createObjectURL(new Blob([file.bytes], { type: IMAGE_TYPES[extension(path)] || "application/octet-stream" }));
+  return file.url;
+}
+
+function drawFileList() {
+  const list = $("file-list");
+  const paths = [...files.keys()].sort();
+  $("file-count").textContent = paths.length ? String(paths.length) : "";
+  list.textContent = "";
+  for (const path of paths) {
+    const file = files.get(path);
+    const button = document.createElement("button");
+    button.dataset.path = path;
+    if (path === shownFile) button.setAttribute("aria-current", "true");
+    const name = document.createElement("span");
+    name.className = "name";
+    const slash = path.lastIndexOf("/") + 1;
+    const dir = document.createElement("span");
+    dir.className = "dir";
+    dir.textContent = path.slice(0, slash);
+    name.append(dir, path.slice(slash));
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = `${formatSize(file.size)} · ${new Date(file.mtime).toLocaleTimeString()}`;
+    button.append(name, meta);
+    list.appendChild(button);
+  }
+}
+
+function drawFile() {
+  const view = $("file-view");
+  view.textContent = "";
+  const file = files.get(shownFile);
+  if (!file) return;
+  const head = document.createElement("div");
+  head.className = "head";
+  const title = document.createElement("strong");
+  title.textContent = shownFile;
+  head.append(title, `${formatSize(file.size)} · written ${new Date(file.mtime).toLocaleTimeString()}`);
+  view.appendChild(head);
+  if (!file.bytes) {
+    const note = document.createElement("p");
+    if (file.missing) note.textContent = "This file could not be read; it may have been removed.";
+    else if (!workerHasFiles) note.textContent = "Not available: Python was restarted (Stop) before this file was sent.";
+    else if (running) note.textContent = "This file is large, so it is sent when the run finishes.";
+    else {
+      note.textContent = "Loading…";
+      worker.postMessage({ type: "read", path: shownFile });
+    }
+    view.appendChild(note);
+    return;
+  }
+  const download = document.createElement("button");
+  download.textContent = "Download";
+  download.addEventListener("click", () => save(new Blob([file.bytes]), shownFile.split("/").pop()));
+  head.appendChild(download);
+  const ext = extension(shownFile);
+  if (IMAGE_TYPES[ext]) {
+    const img = document.createElement("img");
+    img.src = fileUrl(shownFile);
+    img.alt = shownFile;
+    img.addEventListener("click", () => openFigure(img.src, shownFile));
+    view.appendChild(img);
+    return;
+  }
+  // text if there is no NUL byte near the start
+  const start = file.bytes.subarray(0, 4096);
+  if (start.includes(0)) {
+    const note = document.createElement("p");
+    note.textContent = "A binary file: download it to open it.";
+    view.appendChild(note);
+    return;
+  }
+  const pre = document.createElement("pre");
+  pre.textContent = new TextDecoder().decode(file.bytes.subarray(0, TEXT_LIMIT));
+  if (file.bytes.length > TEXT_LIMIT) {
+    const note = document.createElement("p");
+    note.textContent = `Showing the first ${formatSize(TEXT_LIMIT)}; download it for the rest.`;
+    view.appendChild(note);
+  }
+  view.appendChild(pre);
+}
+
+$("file-list").addEventListener("click", (e) => {
+  const button = e.target.closest("button[data-path]");
+  if (!button) return;
+  shownFile = button.dataset.path;
+  drawFileList();
+  $("file-list").querySelector(`[data-path="${CSS.escape(shownFile)}"]`).focus();
+  $("file-view").scrollTop = 0;
+  drawFile();
+});
+
+// Output / Files tabs (arrow keys move between them)
+const TABS = ["output", "files"];
+function showTab(name, focus = false) {
+  for (const tab of TABS) {
+    const button = $("tab-" + tab);
+    button.setAttribute("aria-selected", String(tab === name));
+    button.tabIndex = tab === name ? 0 : -1;
+    $(tab).hidden = tab !== name;
+  }
+  $("output-pane").classList.toggle("files-tab", name === "files");
+  if (focus) $("tab-" + name).focus();
+}
+for (const tab of TABS) {
+  $("tab-" + tab).addEventListener("click", () => showTab(tab));
+  $("tab-" + tab).addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    showTab(TABS[(TABS.indexOf(tab) + 1) % TABS.length], true);
+  });
+}
+
 // ---- worker ---------------------------------------------------------------
 
 function startWorker() {
@@ -276,6 +449,12 @@ function startWorker() {
       case "image":
         showImage(data.name, data.b64);
         break;
+      case "files":
+        setFileList(data.files, data.reset);
+        break;
+      case "file":
+        receiveFile(data);
+        break;
       case "results":
         showResults(data);
         break;
@@ -284,6 +463,7 @@ function startWorker() {
         announce(`Finished in ${data.seconds.toFixed(1)} seconds` + (block.querySelector("img") ? ", with figures" : ""));
         setStatus("Ready", "ok");
         setRunning(false);
+        if (shownFile) drawFile(); // a large file can be read now
         break;
       case "error":
         append(data.text, "error");
@@ -291,6 +471,7 @@ function startWorker() {
         announce((data.fatal ? "Python failed to start: " : "The run failed: ") + data.text.trim().split("\n").pop());
         setStatus(data.fatal ? "Failed to start Python" : "Ready (last run failed)", data.fatal ? "err" : "");
         setRunning(false);
+        if (shownFile && !data.fatal) drawFile();
         break;
     }
   };
@@ -345,6 +526,8 @@ function stop() {
   announce("Stopped; restarting Python");
   block = output;
   running = false;
+  workerHasFiles = false;
+  if (shownFile) drawFile();
   startWorker();
 }
 

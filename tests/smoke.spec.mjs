@@ -14,9 +14,11 @@ async function runExample(page, path) {
   await expect(failed, await failed.allTextContents().then((t) => t.join("\n"))).toHaveCount(0);
 }
 
-test("core example runs and shows figures", async ({ page }) => {
+test("core example runs and its figures are in the Files tab", async ({ page }) => {
   await runExample(page, "core_examples/linear_regression.py");
-  await expect(page.locator("#output img").first()).toBeVisible();
+  await page.locator("#tab-files").click();
+  await page.locator("#file-list button", { hasText: /\.png/ }).first().click();
+  await expect(page.locator("#file-view img")).toBeVisible();
 });
 
 test("GW example installs LALSuite and runs", async ({ page }) => {
