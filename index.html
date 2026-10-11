@@ -154,7 +154,9 @@
     <div id="output" aria-live="polite"></div>
   </section>
 </main>
-<script src="editor.bundle.js"></script>
-<script src="app.js"></script>
+<!-- ?v=dev becomes the commit hash when deployed, so each deploy bypasses
+     cached copies; app.js passes it on to the worker and its fetches -->
+<script src="editor.bundle.js?v=dev"></script>
+<script src="app.js?v=dev"></script>
 </body>
 </html>

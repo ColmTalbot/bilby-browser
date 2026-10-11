@@ -2,6 +2,10 @@
 // Python runs in worker.js; see that file for the message protocol.
 
 const $ = (id) => document.getElementById(id);
+// "?v=<commit>" on this script when deployed: passed on to everything fetched
+// later so a new deploy never mixes with cached files
+const VERSION = new URL(document.currentScript.src).search;
+const versioned = (path) => path + VERSION;
 const output = $("output");
 const editor = BilbyEditor.createEditor($("code"), { onRun: () => run() });
 let worker = null;
@@ -88,7 +92,7 @@ function showImage(name, b64) {
 // ---- worker ---------------------------------------------------------------
 
 function startWorker() {
-  worker = new Worker("worker.js");
+  worker = new Worker(versioned("worker.js"));
   worker.ready = false;
   setRunning(false);
   setStatus("Starting Python…");
@@ -193,7 +197,7 @@ async function select(path) {
   for (let el = link.parentElement; el && el.id !== "tree"; el = el.parentElement) {
     if (el.tagName === "DETAILS") el.open = true;
   }
-  const response = await fetch("examples/" + path);
+  const response = await fetch(versioned("examples/" + path));
   const code = await response.text();
   current = { path, files: JSON.parse(link.dataset.files), original: code };
   editor.load(code);
@@ -221,7 +225,7 @@ function showNotes({ changes, support }) {
 }
 
 async function main() {
-  const manifest = await (await fetch("examples/manifest.json")).json();
+  const manifest = await (await fetch(versioned("examples/manifest.json"))).json();
   buildTree(manifest, $("tree"));
   if (manifest.commit) {
     const link = $("source");

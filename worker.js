@@ -21,9 +21,11 @@ function stream(kind) {
 
 const REPORT = "Please report this at https://github.com/ColmTalbot/bilby-browser/issues";
 const siteUrl = (path) => new URL(path, self.location).href;
+// "?v=<commit>" from app.js, so a new deploy never mixes with cached files
+const versioned = (path) => path + self.location.search;
 
 async function fetchText(path, what) {
-  const response = await fetch(path);
+  const response = await fetch(versioned(path));
   if (!response.ok) {
     throw new Error(`This site could not load its ${what} (HTTP ${response.status}). ${REPORT}`);
   }
@@ -86,7 +88,7 @@ async function run({ path, code, files, testMode }) {
   // copy the example's data files (priors, text data, images) next to it
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   for (const name of files) {
-    const response = await fetch(`examples/${dir}/${name}`);
+    const response = await fetch(versioned(`examples/${dir}/${name}`));
     pyodide.FS.writeFile(name, new Uint8Array(await response.arrayBuffer()));
   }
   const since = py("now")();
