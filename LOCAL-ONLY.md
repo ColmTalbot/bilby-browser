@@ -7,7 +7,6 @@ site is deployed anywhere. Add to this list whenever a new one is introduced.
 |---|---|---|
 | LALSuite Pyodide wheel copied from `~/software/lalsuite/wheelhouse/` (override with `LALSUITE_WHEELHOUSE`) | `scripts/dev.sh` → `wheels/` (**committed for now**, 19 MB) | GitLab CI artifact of `colm.talbot/lalsuite` (`wheel:pyodide` job), pinned by sha256 |
 | `examples/` and `examples/manifest.json` are generated when the dev server starts; `wheels/bilby-*.whl`, `wheels/igwn_segments-*.whl` and `wheels/index.json` are generated too but **committed for now** | `scripts/dev.sh`, `scripts/fetch-bilby.sh` | The same scripts run as a CI build step before deploy |
-| Dev server is `python3 -m http.server` on 127.0.0.1:8000 | `scripts/dev.sh`, `.claude/launch.json` | GitHub Pages (static; same file layout) |
 
 Not local-only, but runtime network dependencies to revisit for deployment:
 Pyodide 0.29.5 and its packages come from jsDelivr, and dynesty, emcee,

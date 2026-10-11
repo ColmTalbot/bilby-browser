@@ -25,6 +25,13 @@ scripts/dev.sh
 then open http://localhost:8000. Pick an example from the tree, edit it if you
 like, and press Run (Ctrl/⌘+Enter). Stop restarts Python.
 
+## Deployment
+
+`.github/workflows/pages.yml` deploys every push to `main` to
+https://colmtalbot.github.io/bilby-browser/. It runs `scripts/fetch-bilby.sh`
+and `scripts/make_manifest.py` to generate `examples/`, then publishes
+`index.html`, `app.js`, `worker.js`, `py/`, `wheels/` and `examples/`.
+
 ## Run examples headlessly (Node)
 
 ```bash
@@ -39,4 +46,5 @@ node scripts/test-examples.mjs core_examples/linear_regression.py
 - `worker.js`: Pyodide in a Web Worker; installs bilby, and LALSuite on the first GW example
 - `py/bootstrap.py`: Python side, shared by the worker and the Node runner
 - `examples/`, `wheels/`: generated, not committed (see above)
-- `scripts/`: bilby fetch, dev server, manifest generator, Node runner
+- `scripts/`: bilby fetch, example adaptation, igwn-segments build, dev server, manifest generator, Node runner
+- `.github/workflows/pages.yml`: build and deploy to GitHub Pages
