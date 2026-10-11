@@ -84,7 +84,7 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
 
 | Status | Examples | Next step |
 |---|---|---|
-| Unsupported (flagged in the page) | pymc ×2, celerite, george, `jax_fast_tutorial`, `read_data_from_channel_name`, `read_gracedb_data`, `roq_example` | ROQ basis files later |
+| Unsupported (flagged in the page) | pymc ×2, celerite, george, `jax_fast_tutorial`, `read_data_from_channel_name`, `read_gracedb_data`, `roq_example` | ROQ basis files later; GraceDB examples need CORS (below) |
 | Need network (fail in Node only) | `GW150914`, `GW190425` | run in the browser (test mode: 81 s and 111 s); test them in a browser in CI |
 | Fail only in test mode | `linear_regression_grid`, `linear_regression_with_Fisher`, `fake_sampler_example`, `non_tensor`, `relative_binning`, `plot_time_domain_data` | test mode skips plots these examples use; see below |
 | bilby `main` bug | `multivariate_gaussian_prior` (`PriorDict.rescale` after #886 cannot handle joint priors) | report upstream |
@@ -146,16 +146,32 @@ In rough priority order.
      whole dataset.
    - Watch for other 32-bit problems: silent int32 overflow (e.g. GPS times
      in nanoseconds) and large nominal views elsewhere.
-2. **Test-mode-incompatible examples.** Six examples fail only in test
+2. **Proprietary data (GraceDB examples).** `read_gracedb_data` and
+   `read_data_from_channel_name` could run for LVK members. The blocker is
+   CORS (checked 2026-10-11, preflight for a GET with `Authorization`):
+   GraceDB answers 405 and GWDataFind 403, with no CORS headers, while the
+   OSDF/Pelican director already allows any origin and the `Authorization`
+   header. Steps:
+   - Ask the GraceDB and GWDataFind maintainers to allow cross-origin
+     requests with `Authorization` (Pelican as the precedent).
+   - Tokens: the user pastes their own SciToken for the session; getting
+     one in the page (OIDC device flow, as htgettoken does) needs CORS on
+     the token server too (not checked). No proxy: it would pass users'
+     tokens through a server we run.
+   - Install ligo-gracedb (pure Python; igwn-auth-utils, safe-netrc,
+     scitokens, PyJWT; cryptography and requests are in Pyodide).
+   - Check that our LALSuite build reads GWF frames (lalframe); consider
+     range reads for frames from OSDF, as for GWOSC HDF5.
+3. **Test-mode-incompatible examples.** Six examples fail only in test
    mode (`tests/known-failures.json`); flag them in the page, or run them
    with test mode off automatically.
-3. **Durable LALSuite source.** GitLab job artifacts can expire; pin a job
+4. **Durable LALSuite source.** GitLab job artifacts can expire; pin a job
    whose artifacts are kept, or mirror the wheel as a GitHub release asset.
    Once the wheel is built from an upstream LALSuite release, point to that.
    Upstream: ship the bundled libraries' licence files in the wheel.
-4. **Upstream bilby issues.** `PriorDict.rescale` with joint priors (#886);
+5. **Upstream bilby issues.** `PriorDict.rescale` with joint priors (#886);
    the GWSignal `ImportError` hides its cause (chain it with `from`).
-5. **Polish.**
+6. **Polish.**
    - Try the page with a real screen reader (VoiceOver, NVDA); so far only
      axe-core and scripted keyboard tests.
    - A sharper logo (the only copy found is the 192px GitHub avatar).

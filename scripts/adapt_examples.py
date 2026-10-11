@@ -41,9 +41,9 @@ UNSUPPORTED = {
     "gw_examples/injection_examples/jax_fast_tutorial.py":
         "needs JAX, which is not available in Pyodide",
     "gw_examples/data_examples/read_data_from_channel_name.py":
-        "needs GraceDB credentials and data only available on LIGO clusters",
+        "needs LVK credentials, and GraceDB and GWDataFind do not allow requests from web pages (CORS)",
     "gw_examples/data_examples/read_gracedb_data.py":
-        "needs GraceDB credentials and data only available on LIGO clusters",
+        "needs LVK credentials, and GraceDB and GWDataFind do not allow requests from web pages (CORS)",
     "gw_examples/injection_examples/roq_example.py":
         "needs ROQ basis files that are not available here yet",
 }
