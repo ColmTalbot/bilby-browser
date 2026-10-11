@@ -51,6 +51,10 @@
   header h1 img { border-radius: 6px; }
   body.tree-hidden nav { display: none; }
   body.tree-hidden main { grid-template-columns: minmax(0, var(--left, 1fr)) minmax(0, var(--right, 1fr)); }
+  /* the editor or the output can be hidden too (never both); the other fills the space */
+  body.editor-hidden #editor-pane, body.output-hidden #output-pane, body.editor-hidden #divider { display: none; }
+  body.editor-hidden main, body.output-hidden main { grid-template-columns: 260px minmax(0, 1fr); }
+  body.tree-hidden.editor-hidden main, body.tree-hidden.output-hidden main { grid-template-columns: minmax(0, 1fr); }
   #status { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
   /* download progress for start-up and installs, along the header's bottom edge */
   header { position: relative; }
@@ -76,6 +80,9 @@
                  border-color: transparent; }
   .icon-button:hover { color: var(--fg); background: var(--panel); border-color: var(--border); }
   .icon-button svg { width: 18px; height: 18px; }
+  /* the shaded region marks a pane that is showing */
+  .icon-button .fill { fill: currentColor; stroke: none; opacity: 0.3; }
+  .icon-button[aria-expanded="false"] .fill { opacity: 0; }
   #theme { font-size: 12px; padding: 4px 8px; line-height: 1.2; color: var(--muted); }
   #status.ok { color: var(--ok); } #status.err { color: var(--err); }
   main { display: grid;
@@ -87,6 +94,8 @@
     body.tree-hidden main { grid-template-columns: minmax(0, 1fr); }
     #output-pane { grid-column: 1 / -1; }
     #divider { display: none; }
+    body.editor-hidden main, body.output-hidden main { grid-template-columns: 220px minmax(0, 1fr); }
+    body.editor-hidden #output-pane { grid-column: auto; }
   }
   #scrim { display: none; }
 
@@ -245,7 +254,7 @@
     header h1 img { width: 26px; height: 26px; }
     #status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .toggle { flex: none; }
-    main, body.tree-hidden main { grid-template-columns: minmax(0, 1fr); padding: 10px 12px; gap: 12px; }
+    main, body.tree-hidden main, body.editor-hidden main, body.output-hidden main { grid-template-columns: minmax(0, 1fr); padding: 10px 12px; gap: 12px; }
     nav, body.tree-hidden nav { display: flex; position: fixed; z-index: 30; top: 0; bottom: 0; left: 0;
           width: min(85vw, 320px); padding: 12px; background: var(--bg); border-right: 1px solid var(--border);
           box-shadow: 0 0 24px rgba(0, 0, 0, 0.25); transform: translateX(-105%);
@@ -274,7 +283,20 @@
 <header>
   <button id="toggle-tree" class="icon-button" aria-controls="tree" aria-expanded="true" title="Hide the example list">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <rect class="fill" x="3.5" y="4.5" width="4.25" height="11" rx="1.75"/>
       <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5"/><line x1="7.75" y1="4" x2="7.75" y2="16"/>
+    </svg>
+  </button>
+  <button id="toggle-editor" class="icon-button" aria-controls="editor-pane" aria-expanded="true" title="Hide the editor">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <rect class="fill" x="7.75" y="4.5" width="4.5" height="11"/>
+      <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5"/><line x1="7.75" y1="4" x2="7.75" y2="16"/><line x1="12.25" y1="4" x2="12.25" y2="16"/>
+    </svg>
+  </button>
+  <button id="toggle-output" class="icon-button" aria-controls="output-pane" aria-expanded="true" title="Hide the output">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <rect class="fill" x="12.25" y="4.5" width="4.25" height="11" rx="1.75"/>
+      <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5"/><line x1="12.25" y1="4" x2="12.25" y2="16"/>
     </svg>
   </button>
   <h1><img src="assets/bilby-logo.jpg" alt="Bilby" title="Bilby" width="28" height="28"></h1>
@@ -297,7 +319,7 @@
     <input id="search" type="search" placeholder="Search examples" aria-label="Search examples" autocomplete="off">
     <div id="no-match" class="hidden">No matching examples</div>
   </nav>
-  <section class="pane">
+  <section class="pane" id="editor-pane">
     <div class="toolbar">
       <span id="title"></span>
       <span class="spacer"></span>

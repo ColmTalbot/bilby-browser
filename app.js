@@ -305,6 +305,7 @@ function markTracebackLine(text) {
 
 function run() {
   if (!current || running || !worker?.ready) return;
+  if (document.body.classList.contains("output-hidden")) setPaneHidden("output", false);
   setRunning(true);
   setStatus("Running " + current.path + "…");
   const testMode = $("test-mode").checked;
@@ -531,6 +532,37 @@ $("toggle-tree").addEventListener("click", () => {
   showTree();
 });
 $("scrim").addEventListener("click", () => setDrawer(false));
+
+// the editor and the output can be hidden as well, but never both: hiding one
+// while the other is hidden swaps them. Remembered per browser.
+const PANES = { editor: "the editor", output: "the output" };
+function setPaneHidden(pane, hidden) {
+  const other = pane === "editor" ? "output" : "editor";
+  document.body.classList.toggle(pane + "-hidden", hidden);
+  if (hidden) document.body.classList.remove(other + "-hidden");
+  for (const name in PANES) {
+    const isHidden = document.body.classList.contains(name + "-hidden");
+    const button = $("toggle-" + name);
+    button.setAttribute("aria-expanded", String(!isHidden));
+    button.title = (isHidden ? "Show " : "Hide ") + PANES[name];
+    store("bilby-" + name + "-hidden", isHidden ? "1" : "0");
+  }
+}
+if (stored("bilby-output-hidden") === "1") setPaneHidden("output", true);
+else if (stored("bilby-editor-hidden") === "1") setPaneHidden("editor", true);
+for (const name in PANES) {
+  $("toggle-" + name).addEventListener("click", () =>
+    setPaneHidden(name, !document.body.classList.contains(name + "-hidden")));
+}
+// Run lives in the editor toolbar; with the editor hidden, Ctrl/⌘+Enter
+// anywhere on the page still runs (the editor handles it otherwise)
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.repeat &&
+      document.body.classList.contains("editor-hidden")) {
+    e.preventDefault();
+    run();
+  }
+});
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && document.body.classList.contains("tree-open")) setDrawer(false);
 });
