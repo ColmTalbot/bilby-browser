@@ -93,9 +93,10 @@ function write(kind, text) {
         carriageReturn = true;
       } else if (part) {
         if (!line || lineKind !== kind) newLine(kind);
-        if (carriageReturn) line.textContent = "";
+        if (carriageReturn) line.raw = "";
         carriageReturn = false;
-        line.textContent += part;
+        line.raw += part;
+        render(line);
       }
     }
   });
@@ -104,8 +105,58 @@ function write(kind, text) {
 function newLine(kind) {
   line = document.createElement("pre");
   line.className = kind;
+  line.raw = "";
   lineKind = kind;
   block.appendChild(line);
+}
+
+// A line is shown as text, or, if it is a tqdm progress line, as a bar like
+// tqdm's Jupyter one: description, bar (when tqdm knows the total), count,
+// time and rate, with any extra stats (dynesty's) on a second line.
+//   "desc: 42%|████▏     | 42/100 [00:03<00:04, 12.5it/s, extra]"
+//   "desc: 3it [00:00, 25.64it/s, extra]"
+const TQDM_TOTAL = /^(?:(.*?): ?)?\s*(\d+)%\|[^|]*\| ?(\S+)\/(\S+) \[([^\]]*)\]\s*$/;
+const TQDM_COUNT = /^(?:(.*?): ?)?(\d[\d.]*[kMG]?)it \[([^\]]*)\]\s*$/;
+
+function render(pre) {
+  const total = pre.raw.match(TQDM_TOTAL);
+  const count = total ? null : pre.raw.match(TQDM_COUNT);
+  if (!total && !count) {
+    pre.classList.remove("tqdm");
+    pre.textContent = pre.raw;
+    return;
+  }
+  const [desc, stats] = total ? [total[1], total[5]] : [count[1], count[3]];
+  const [time, rate, ...extra] = stats.split(", ");
+  pre.classList.add("tqdm");
+  pre.textContent = "";
+  const row = document.createElement("div");
+  row.className = "tqdm-row";
+  const span = (cls, text) => {
+    const el = document.createElement("span");
+    el.className = cls;
+    el.textContent = text;
+    row.appendChild(el);
+    return el;
+  };
+  if (desc) span("tqdm-desc", desc);
+  if (total) {
+    const bar = span("tqdm-bar", "");
+    const fill = document.createElement("span");
+    fill.style.width = `${Math.min(100, Number(total[2]))}%`;
+    bar.appendChild(fill);
+    span("tqdm-count", `${total[2]}% · ${total[3]}/${total[4]}`);
+  } else {
+    span("tqdm-count", `${count[2]} it`);
+  }
+  span("tqdm-meta", [time, rate].filter(Boolean).join(" · "));
+  pre.appendChild(row);
+  if (extra.length) {
+    const more = document.createElement("div");
+    more.className = "tqdm-extra";
+    more.textContent = extra.join(", ");
+    pre.appendChild(more);
+  }
 }
 
 function showImage(name, b64) {

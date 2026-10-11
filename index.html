@@ -207,6 +207,17 @@
             font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
   #output pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
   #output .stderr { color: var(--muted); }
+  /* tqdm progress lines, drawn as bars (render() in app.js) */
+  #output pre.tqdm { color: var(--fg); margin: 2px 0; }
+  #output .tqdm-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #output .tqdm-desc { font-weight: 600; }
+  #output .tqdm-bar { flex: 1 1 120px; max-width: 320px; height: 8px; border-radius: 4px;
+                      background: var(--border); overflow: hidden; }
+  #output .tqdm-bar > span { display: block; height: 100%; background: var(--ok);
+                             border-radius: 4px; transition: width 0.15s; }
+  #output .tqdm-count { font-variant-numeric: tabular-nums; }
+  #output .tqdm-meta, #output .tqdm-extra { color: var(--muted); font-variant-numeric: tabular-nums; }
+  #output .tqdm-extra { font-size: 11px; white-space: pre-wrap; }
   #output .error { color: var(--err); }
   #output .info { color: var(--muted); font-style: italic; }
   #output .run { color: var(--accent); font-weight: 600; cursor: pointer; }
