@@ -1,0 +1,12 @@
+{
+ "_comment": "Examples expected to fail under scripts/test-all.mjs (bilby test mode). Unsupported examples (scripts/adapt_examples.py) are skipped, not listed here.",
+ "core_examples/linear_regression_grid.py": "test mode: plot_corner returns None, which the example uses",
+ "core_examples/linear_regression_with_Fisher.py": "test mode: plot_corner returns None, which the example uses",
+ "gw_examples/injection_examples/fake_sampler_example.py": "test mode: plot_corner returns None, which the example uses",
+ "gw_examples/injection_examples/non_tensor.py": "test mode: plot_corner returns None, which the example uses",
+ "gw_examples/injection_examples/relative_binning.py": "test mode: plot_corner returns None, which the example uses",
+ "gw_examples/injection_examples/plot_time_domain_data.py": "test mode: plot_time_domain_data writes no PNG, which the example opens",
+ "core_examples/multivariate_gaussian_prior.py": "bilby main: PriorDict.rescale cannot handle joint priors since #886",
+ "gw_examples/injection_examples/bns_polytrope_eos_example.py": "LALSuite: CreateSimNeutronStarFamily now needs min_fam",
+ "gw_examples/injection_examples/bns_spectral_pca_eos_example.py": "LALSuite: CreateSimNeutronStarFamily now needs min_fam"
+}
