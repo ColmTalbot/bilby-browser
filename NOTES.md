@@ -96,9 +96,13 @@ These notes were written from the LALSuite Pyodide work (branch
   default integer are 32-bit: `np.array([2**30]) * 4` is `[0]`, silently.
   Python `int` is still arbitrary precision, and `int64` works when asked
   for. numpy refuses arrays whose nominal size exceeds 2^31 bytes, even
-  zero-copy views. scipy's Welch/CSD
-  (`sliding_window_view` in `_fft_helper`) hits this for PSDs of more than
-  a few seconds of 4 kHz data.
+  zero-copy views. scipy's Welch/CSD/STFT helper (`_fft_helper`) views the
+  data as a window at every sample and then keeps every step-th one, so
+  any PSD of more than about 16 s of 4 kHz data failed. `py/bootstrap.py`
+  replaces it with a strided view of only the windows used (bit-identical
+  to scipy for welch, median welch, csd, spectrogram, stft and coherence).
+  Plain FFTs are unaffected: only a real array over 2 GB fails, and that
+  would not fit in wasm32 memory anyway.
 - **No multiprocessing or threads** in Pyodide: samplers run on one core.
   `npool` and similar options must stay at 1.
   gwpy 4's `fetch_open_data` always uses a `ThreadPoolExecutor` (even for

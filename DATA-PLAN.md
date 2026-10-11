@@ -1,8 +1,7 @@
 # Plan: GWOSC data by HTTP range reads
 
 Status (2026-10-11): steps 1–3 below are implemented (`py/gwosc_range.py`,
-`tests/test_gwosc_range.py`). The examples are still blocked by a separate
-32-bit numpy problem in the PSD (see `PLAN.md`).
+`tests/test_gwosc_range.py`), and GW150914 and GW190425 run with them.
 
 Goal: `TimeSeries.fetch_open_data` works in the browser for any detector,
 any times and any event, with no list of supported times. It downloads

@@ -44,22 +44,8 @@ UNSUPPORTED = {
         "needs GraceDB credentials and data only available on LIGO clusters",
     "gw_examples/data_examples/read_gracedb_data.py":
         "needs GraceDB credentials and data only available on LIGO clusters",
-    "gw_examples/data_examples/GW150914.py":
-        "GWOSC data loads, but the PSD fails in 32-bit numpy (scipy's Welch makes a view over 2 GB)",
-    "gw_examples/data_examples/GW190425.py":
-        "GWOSC data loads, but the PSD fails in 32-bit numpy (scipy's Welch makes a view over 2 GB)",
     "gw_examples/injection_examples/roq_example.py":
         "needs ROQ basis files that are not available here yet",
-}
-# Shown with every example under a prefix.
-WARNINGS = {
-    "gw_examples/": (
-        "Pyodide is 32-bit WebAssembly. Floats are still 64-bit (the same "
-        "precision as usual), but array sizes and numpy's default integer "
-        "are 32-bit: integer arrays overflow silently above 2^31 (about "
-        "2.1e9, e.g. GPS times in nanoseconds), and arrays or views larger "
-        "than 2 GB fail, so results may differ from 64-bit Python"
-    ),
 }
 PARTIAL = {
     "gw_examples/injection_examples/plot_skymap.py":
@@ -83,9 +69,6 @@ def adapt():
         entry = {}
         if changes:
             entry["changes"] = changes
-        warnings = [text for prefix, text in WARNINGS.items() if key.startswith(prefix)]
-        if warnings:
-            entry["warnings"] = warnings
         if key in UNSUPPORTED:
             entry["support"] = {"status": "unsupported", "reason": UNSUPPORTED[key]}
         elif key in PARTIAL:

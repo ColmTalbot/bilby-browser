@@ -162,6 +162,9 @@ async def install_bilby():
 
     concurrent.futures.ThreadPoolExecutor = _SerialExecutor
     import bilby
+    import scipy.signal._spectral_py
+
+    scipy.signal._spectral_py._fft_helper = _fft_helper
     from bilby.core.sampler.base_sampler import Sampler
 
     # Always run cleanly (the --clean flag): output stays in the in-memory
@@ -207,6 +210,40 @@ class _SerialExecutor:
 
     def __exit__(self, *exc):
         return False
+
+
+def _fft_helper(x, win, detrend_func, nperseg, noverlap, nfft, sides):
+    """scipy.signal._spectral_py._fft_helper (used by welch, csd,
+    spectrogram, stft, ...) without its sliding_window_view.
+
+    scipy views the data as a window at every sample and then keeps every
+    step-th one. Nothing is copied, but numpy refuses views whose nominal
+    size is over 2**31 bytes in 32-bit WebAssembly, so a PSD of more than a
+    few seconds of 4 kHz data fails with "array is too big". Striding
+    straight to the windows that are kept gives the same values with a view
+    about the size of the data."""
+    import numpy as np
+    from scipy import fft as sp_fft
+
+    if nperseg == 1 and noverlap == 0:
+        result = x[..., np.newaxis]
+    else:
+        step = nperseg - noverlap
+        shape = x.shape[:-1] + ((x.shape[-1] - nperseg) // step + 1, nperseg)
+        strides = x.strides[:-1] + (step * x.strides[-1], x.strides[-1])
+        result = np.lib.stride_tricks.as_strided(
+            x, shape=shape, strides=strides, writeable=True
+        )
+
+    # The rest is as in scipy
+    result = detrend_func(result)
+    result = win * result
+    if sides == "twosided":
+        func = sp_fft.fft
+    else:
+        result = result.real
+        func = sp_fft.rfft
+    return func(result, n=nfft)
 
 
 def set_test_mode(enabled):

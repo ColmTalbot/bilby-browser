@@ -369,7 +369,7 @@ function buildTree(node, parent, depth = 0) {
     link.dataset.headerLines = example.header_lines || 0;
     link.dataset.path = example.path;
     link.dataset.files = JSON.stringify(node.files);
-    link.dataset.info = JSON.stringify({ changes: example.changes || [], support: example.support || null, warnings: example.warnings || [] });
+    link.dataset.info = JSON.stringify({ changes: example.changes || [], support: example.support || null });
     if (example.support) {
       link.classList.add(example.support.status);
       const note = document.createElement("span");
@@ -451,7 +451,7 @@ function openScratch() {
   editor.load(stored("bilby-scratch") || "");
   $("title").textContent = SCRATCH;
   showDoc(["<p>A blank editor. Its contents are kept in this browser; Reset clears it.</p>"]);
-  showNotes({ changes: [], support: null, warnings: [] });
+  showNotes({ changes: [], support: null });
   editor.focus();
 }
 
@@ -485,19 +485,13 @@ function showDoc(blocks) {
 }
 
 // What differs from the upstream example, and whether it can run here.
-function showNotes({ changes, support, warnings = [] }) {
+function showNotes({ changes, support }) {
   const notes = $("notes");
   notes.innerHTML = "";
   if (support) {
     const p = document.createElement("p");
     p.className = support.status;
     p.textContent = (support.status === "unsupported" ? "Not supported in the browser: " : "Partly supported: ") + support.reason;
-    notes.appendChild(p);
-  }
-  for (const warning of warnings) {
-    const p = document.createElement("p");
-    p.className = "warning";
-    p.textContent = "Warning: " + warning + ".";
     notes.appendChild(p);
   }
   if (changes.length) {
