@@ -23,9 +23,10 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
   - Stop terminates the worker and starts a new one.
   - Header: toggles for the sidebar, editor and output (never both panes
     hidden; remembered per browser), bilby-dev logo, status, test-mode switch
-    (amber page while on), links, and an auto/light/dark theme button. Test
-    mode is on by default when served locally and off on the live site; a
-    choice made with the switch is remembered per browser.
+    (amber page while on), bilby log level menu, links, and an
+    auto/light/dark theme button. Test mode is on by default when served
+    locally and off on the live site; the log level is ERROR by default.
+    Both choices are remembered per browser.
   - Start-up and installs show a download progress bar along the header and
     the amount in the status text, from the file sizes in `wheels/sizes.json`
     (`scripts/write_sizes.py`). It updates in bursts: while Pyodide sets up a
@@ -35,8 +36,17 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
   Installs bilby at startup, LALSuite on the first GW example, and extras
   (gwpy, gwosc, gwinc, scikit-image) when an example needs them.
   `command_line_args.clean` is always on, so reruns never resume from a
-  checkpoint; `bilby_test_mode` follows the switch. tqdm's monitor thread
-  is turned off, since Pyodide cannot start threads.
+  checkpoint; `bilby_test_mode` follows the switch; bilby's logger is set
+  up at the menu's level before each run (overriding the level examples
+  pass to `setup_logger`). Pyodide cannot start threads, so tqdm's monitor
+  thread is off and gwpy's thread pool runs tasks in place.
+- **Real data**: GWOSC strain is read with HTTP range requests
+  (`py/gwosc_range.py`, design in `DATA-PLAN.md`), downloading only the
+  requested span, in parallel where the browser supports JSPI, and cached
+  for the session. Other downloads use synchronous XHR.
+- **32-bit WebAssembly**: floats are 64-bit, but sizes and numpy's default
+  integer are 32-bit (details in `NOTES.md`). scipy's spectral helper
+  `_fft_helper` is replaced so PSDs do not hit numpy's 2 GB view limit.
 - **bilby and examples** come from one pinned commit of bilby-dev/bilby
   `main` (`bilby-commit.txt`; `scripts/fetch-bilby.sh --update` moves it).
   `scripts/adapt_examples.py` edits them for Pyodide (pymultinest → nestle,
@@ -53,7 +63,10 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
   site with `scripts/serve.py`, which disables browser caching.
 - **Testing**: `scripts/test-examples.mjs` runs examples headlessly in Node
   (test mode on unless `--full`); `.github/workflows/tests.yml` runs every
-  supported example and a Playwright smoke test separately from deploys.
+  supported example, the range reader against gwpy in CPython
+  (`tests/test_gwosc_range.py`), and a Playwright smoke test, separately
+  from deploys. Pyodide has no network under Node, so the GWOSC examples
+  are only checked by hand in the browser.
 
 ### Where packages come from
 
@@ -67,11 +80,12 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
 
 ### Example status (test mode, Node, bilby `f2d03634`)
 
-31 of the 40 supported examples pass (`scripts/test-all.mjs`), mostly in seconds. The rest:
+31 of the 42 supported examples pass (`scripts/test-all.mjs`), mostly in seconds. The rest:
 
 | Status | Examples | Next step |
 |---|---|---|
-| Unsupported (flagged in the page) | pymc ×2, celerite, george, `jax_fast_tutorial`, `read_data_from_channel_name`, `read_gracedb_data`, `roq_example`, `GW150914`, `GW190425` | ROQ basis files later; real data being redesigned |
+| Unsupported (flagged in the page) | pymc ×2, celerite, george, `jax_fast_tutorial`, `read_data_from_channel_name`, `read_gracedb_data`, `roq_example` | ROQ basis files later |
+| Need network (fail in Node only) | `GW150914`, `GW190425` | run in the browser (test mode: 81 s and 111 s); test them in a browser in CI |
 | Fail only in test mode | `linear_regression_grid`, `linear_regression_with_Fisher`, `fake_sampler_example`, `non_tensor`, `relative_binning`, `plot_time_domain_data` | test mode skips plots these examples use; see below |
 | bilby `main` bug | `multivariate_gaussian_prior` (`PriorDict.rescale` after #886 cannot handle joint priors) | report upstream |
 | LALSuite API change | `bns_polytrope_eos`, `bns_spectral_pca_eos` (`CreateSimNeutronStarFamily` needs `min_fam`) | Colm is fixing |
@@ -92,6 +106,14 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
   supported example in Node, test mode, failures checked against
   `tests/known-failures.json`) and a Playwright smoke test of the assembled
   site, on pushes and pull requests; deploys (`pages.yml`) do not wait for it.
+- **Real data** — GW150914 and GW190425 run in the browser. gwpy 4's
+  thread pool runs tasks in place; GWOSC strain is read by HTTP range
+  requests (128 s of H1 is 3.7 MB in about 5 s, instead of a 130 MB file),
+  bit-identical to gwpy's reader; scipy's PSD helper no longer fails on
+  32-bit numpy (bit-identical to scipy).
+- **Log level menu** — bilby's log messages were dropped (no handler on
+  bilby `main` unless `setup_logger` is called); they now show at the
+  chosen level, ERROR by default.
 - `eccentric_inspiral` works: GWSignal now triggers the gwpy install.
 - **Editor** — CodeMirror 6 replaced the textarea.
 - **Page polish** — example search and hideable sidebar, editor and output
@@ -112,19 +134,18 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
 
 In rough priority order.
 
-1. **Real data.** GW150914 and GW190425 run (test mode: 81 s and 111 s).
-   - Done: `fetch_open_data` works in the browser. gwpy's thread pool runs
-     tasks in place, and HDF5 strain is read with HTTP range requests from
-     GWOSC (`py/gwosc_range.py`, design in `DATA-PLAN.md`). Only the
-     requested span is downloaded (128 s of H1 is 3.7 MB in about 5 s),
-     with parallel requests where the browser supports JSPI, and it is
-     cached for the session.
-   - Done: PSDs on 32-bit numpy. scipy's Welch/CSD helper made a
-     `sliding_window_view` at every sample, nominally far over the 2^31-byte
-     limit; `_fft_helper` is replaced with a strided view of only the used
-     segments (bit-identical; see `NOTES.md`). Upstream: report to scipy
-     (still the same in 1.18).
-   - Later: a cache that survives reloads; StateVector reads.
+1. **Real data, next.**
+   - Test the GWOSC examples in CI: run them in Playwright (a real browser,
+     with network), or give the Node runner a network shim.
+   - A cache that survives reloads (e.g. IndexedDB or the Cache API), so a
+     rerun after Stop or a reload does not download again.
+   - Range reads for StateVector (data-quality) requests, which still
+     download whole files.
+   - Upstream: report `_fft_helper`'s nominal-size problem to scipy (the
+     same in 1.18); suggest gwpy read the requested slice rather than the
+     whole dataset.
+   - Watch for other 32-bit problems: silent int32 overflow (e.g. GPS times
+     in nanoseconds) and large nominal views elsewhere.
 2. **Test-mode-incompatible examples.** Six examples fail only in test
    mode (`tests/known-failures.json`); flag them in the page, or run them
    with test mode off automatically.
