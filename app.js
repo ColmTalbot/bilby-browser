@@ -191,6 +191,9 @@ function startWorker() {
       case "status":
         setStatus(data.text);
         break;
+      case "progress":
+        showProgress(data);
+        break;
       case "ready":
         worker.ready = true;
         setStatus("Ready: " + data.text, "ok");
@@ -221,6 +224,23 @@ function startWorker() {
         break;
     }
   };
+}
+
+// Download progress of start-up and installs: the bar under the header, and
+// the amount in the status text. expected is 0 when the total is unknown.
+function showProgress({ done, label, received, expected }) {
+  const bar = $("progress");
+  bar.classList.toggle("active", !done);
+  if (done) return;
+  bar.classList.toggle("unknown", !expected);
+  const fraction = expected ? Math.min(1, received / expected) : 0;
+  bar.firstElementChild.style.width = expected ? `${(fraction * 100).toFixed(1)}%` : "";
+  if (expected) bar.setAttribute("aria-valuenow", Math.round(fraction * 100));
+  else bar.removeAttribute("aria-valuenow");
+  const amount = expected
+    ? `${formatSize(Math.min(received, expected))} of ${formatSize(expected)}`
+    : formatSize(received);
+  setStatus(`${label}… ${amount}`);
 }
 
 // Highlight the line of the example that a traceback points at: the last

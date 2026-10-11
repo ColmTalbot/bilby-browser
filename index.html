@@ -51,7 +51,25 @@
   header h1 img { border-radius: 6px; }
   body.tree-hidden nav { display: none; }
   body.tree-hidden main { grid-template-columns: minmax(0, var(--left, 1fr)) minmax(0, var(--right, 1fr)); }
-  #status { font-size: 13px; color: var(--muted); }
+  #status { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  /* download progress for start-up and installs, along the header's bottom edge */
+  header { position: relative; }
+  #progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; overflow: hidden;
+              opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  #progress.active { opacity: 1; }
+  #progress .fill { height: 100%; width: 0; transition: width 0.2s ease-out;
+                    background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 40%,
+                      color-mix(in srgb, var(--accent) 45%, white) 50%, var(--accent) 60%, var(--accent) 100%)
+                      0 0 / 300% 100%; animation: progress-sheen 1.6s linear infinite; }
+  /* the sheen keeps moving while the worker is busy setting a package up and
+     cannot report (the amount only updates between those steps) */
+  @keyframes progress-sheen { from { background-position: 100% 0; } to { background-position: 0 0; } }
+  #progress.unknown .fill { width: 30%; animation: progress-slide 1.2s ease-in-out infinite; }
+  @keyframes progress-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  @media (prefers-reduced-motion: reduce) {
+    #progress .fill { animation: none; }
+    #progress.unknown .fill { width: 100%; opacity: 0.5; }
+  }
   header .links { margin-left: auto; display: flex; gap: 14px; align-items: center; }
   header .links a { color: var(--muted); }
   .icon-button { padding: 5px; line-height: 0; color: var(--muted); background: transparent;
@@ -261,6 +279,7 @@
     <a href="licenses.html">Licences</a>
     <button id="theme" title="Colour theme">Theme: auto</button>
   </span>
+  <div id="progress" role="progressbar" aria-label="Download progress"><div class="fill"></div></div>
 </header>
 <main>
   <nav id="tree" aria-label="Examples">

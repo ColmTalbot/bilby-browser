@@ -11,6 +11,7 @@ python3 scripts/fetch-pypi-wheels.py
 [[ -d node_modules ]] || npm ci --silent
 npm run -s build:editor
 python3 scripts/write_wheel_index.py
+python3 scripts/write_sizes.py
 python3 scripts/make_manifest.py
 python3 scripts/write_licenses.py
 echo "serving on http://localhost:${PORT:-8000}"

@@ -1,6 +1,6 @@
 // Runs Pyodide and bilby off the main thread. Messages:
 //   in:  {type: "run", path, code, files, testMode}
-//   out: {type: "status" | "ready" | "info" | "stream" | "image" | "results" | "done" | "error", ...}
+//   out: {type: "status" | "progress" | "ready" | "info" | "stream" | "image" | "results" | "done" | "error", ...}
 // The page stops a run by terminating this worker and starting a new one.
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js");
 
@@ -32,39 +32,127 @@ async function fetchText(path, what) {
   return response.text();
 }
 
-async function init() {
-  post("status", { text: "Loading Pyodide…" });
-  pyodide = await loadPyodide();
-  pyodide.setStdout(stream("stdout"));
-  pyodide.setStderr(stream("stderr"));
-  pyodide.registerJsModule("_site", { image: (name, b64) => post("image", { name, b64 }) });
-  pyodide.runPython(await fetchText("py/bootstrap.py", "Python setup code"));
+// ---- download progress ----------------------------------------------------
+// While start-up or an install runs, every response fetched (by Pyodide,
+// micropip or this file) is counted as it arrives, against the total that
+// wheels/sizes.json predicts; the page draws the bar. Counting reads a clone,
+// so the response itself is untouched.
 
+let sizes = { site: {} };
+let lock = null;
+let index = {};
+let phase = null; // {label, received, expected}; expected 0 = unknown
+let lastProgress = 0;
+
+const realFetch = self.fetch.bind(self);
+self.fetch = async (...args) => {
+  const response = await realFetch(...args);
+  if (phase && response.ok && response.body) count(response.clone(), phase);
+  return response;
+};
+
+async function count(response, current) {
+  try {
+    const reader = response.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      current.received += value.length;
+      progress(current);
+    }
+  } catch {
+    // only the bar is affected
+  }
+}
+
+function progress(current, force = false) {
+  const now = performance.now();
+  if (current !== phase || (!force && now - lastProgress < 100)) return;
+  lastProgress = now;
+  post("progress", { label: current.label, received: current.received, expected: current.expected });
+}
+
+function setPhaseLabel(label) {
+  phase.label = label;
+  post("status", { text: label + "…" });
+  progress(phase, true);
+}
+
+async function withProgress(label, expected, fn) {
+  phase = { label, received: 0, expected };
+  setPhaseLabel(label);
+  try {
+    return await fn();
+  } finally {
+    phase = null;
+    post("progress", { done: true });
+  }
+}
+
+// The site-built wheel in each group (see GROUPS in py/bootstrap.py).
+const LOCAL_WHEELS = { bilby: "bilby", lalsuite: "lalsuite", gwpy: "igwn_segments" };
+
+// Bytes still to download to install these groups, or 0 if unknown.
+function groupBytes(names) {
+  const loaded = pyodide ? pyodide.loadedPackages : {};
+  const files = new Map();
+  for (const name of names) {
+    const group = lock.groups[name];
+    for (const pkg of group.pyodide) {
+      if (pkg in loaded) continue;
+      const size = sizes.pyodide?.packages?.[pkg];
+      if (size == null) return 0;
+      files.set("pyodide:" + pkg, size);
+    }
+    for (const wheel of group.pypi) files.set(wheel.file, sizes.site["wheels/pypi/" + wheel.file] ?? 0);
+    const local = index[LOCAL_WHEELS[name]];
+    if (local) files.set(local, sizes.site["wheels/" + local] ?? 0);
+  }
+  return [...files.values()].reduce((a, b) => a + b, 0);
+}
+
+async function init() {
   // Everything is installed from the site itself: the local wheels listed in
   // wheels/index.json and the PyPI wheels pinned in wheels/packages.lock.json.
-  const index = JSON.parse(await fetchText("wheels/index.json", "package list"));
-  const lock = await fetchText("wheels/packages.lock.json", "package lock");
-  const urls = {};
-  for (const [key, wheel] of Object.entries(index)) {
-    if (wheel) urls[key] = siteUrl("wheels/" + wheel);
-  }
-  const pyUrls = pyodide.toPy(urls);
+  const lockText = await fetchText("wheels/packages.lock.json", "package lock");
+  lock = JSON.parse(lockText);
+  index = JSON.parse(await fetchText("wheels/index.json", "package list"));
   try {
-    py("set_lock")(lock, siteUrl("wheels/pypi/"), pyUrls);
-  } finally {
-    pyUrls.destroy();
+    sizes = JSON.parse(await fetchText("wheels/sizes.json", "file sizes"));
+  } catch {
+    // no sizes: the bar shows activity without a percentage
   }
-  post("status", { text: "Installing bilby…" });
-  const version = await py("install_bilby")();
+  const core = sizes.pyodide ? Object.values(sizes.pyodide.core).reduce((a, b) => a + b, 0) : 0;
+  const bilby = groupBytes(["bilby"]);
+  const expected = core && bilby ? core + bilby : 0;
+
+  const version = await withProgress("Loading Pyodide", expected, async () => {
+    pyodide = await loadPyodide();
+    pyodide.setStdout(stream("stdout"));
+    pyodide.setStderr(stream("stderr"));
+    pyodide.registerJsModule("_site", { image: (name, b64) => post("image", { name, b64 }) });
+    pyodide.runPython(await fetchText("py/bootstrap.py", "Python setup code"));
+    const urls = {};
+    for (const [key, wheel] of Object.entries(index)) {
+      if (wheel) urls[key] = siteUrl("wheels/" + wheel);
+    }
+    const pyUrls = pyodide.toPy(urls);
+    try {
+      py("set_lock")(lockText, siteUrl("wheels/pypi/"), pyUrls);
+    } finally {
+      pyUrls.destroy();
+    }
+    setPhaseLabel("Installing bilby");
+    return await py("install_bilby")();
+  });
   post("ready", { text: `bilby ${version} · Pyodide ${pyodide.version}` });
 }
 
 // LALSuite is about 19 MB, so install it the first time a GW example runs.
 function installLalsuite() {
-  lalsuite ??= (async () => {
-    post("status", { text: "Installing LALSuite…" });
+  lalsuite ??= withProgress("Installing LALSuite", groupBytes(["lalsuite"]), async () => {
     post("info", { text: `LAL ${await py("install_lalsuite")()} installed` });
-  })();
+  });
   return lalsuite;
 }
 
@@ -79,8 +167,7 @@ async function run({ path, code, files, testMode }) {
   }
   const extras = py("extras_for")(code).toJs();
   if (extras.length) {
-    post("status", { text: `Installing ${extras.join(", ")}…` });
-    await py("install_extras")(extras);
+    await withProgress(`Installing ${extras.join(", ")}`, groupBytes(extras), () => py("install_extras")(extras));
     post("status", { text: `Running ${path}…` });
   }
   py("set_test_mode")(testMode);
