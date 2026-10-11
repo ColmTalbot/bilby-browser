@@ -146,6 +146,13 @@ async def install_bilby():
     import matplotlib.pyplot as plt
 
     plt.show = show
+
+    # tqdm starts a monitor thread for each progress bar; Pyodide cannot start
+    # threads, so tqdm warns (TqdmMonitorWarning) and goes on without it.
+    # Not asking for the monitor avoids the warning.
+    import tqdm
+
+    tqdm.tqdm.monitor_interval = 0
     import bilby
     from bilby.core.sampler.base_sampler import Sampler
 
