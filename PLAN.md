@@ -16,20 +16,27 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
     by `npm run build:editor`): Python highlighting, Ctrl/⌘+Enter to run,
     undoable Reset, the line a traceback points at highlighted. New opens a
     blank editor (`#scratch`, kept per browser); Download saves the script.
-  - Output: each run is a collapsible block; progress bars rewrite in place;
-    figures enlarge on click and download; Copy copies the text; Results
-    downloads a zip of every file the run wrote.
+  - Output: each run is a collapsible block; progress bars rewrite in place,
+    and tqdm lines are drawn as bars like tqdm's Jupyter one (filled when
+    tqdm knows the total); figures enlarge on click and download; Copy copies
+    the text; Results downloads a zip of every file the run wrote.
   - Stop terminates the worker and starts a new one.
-  - Header: sidebar toggle, bilby-dev logo, status, test-mode switch (amber
-    page while on), links, and an auto/light/dark theme button. Test mode is
-    on by default when served locally and off on the live site; a choice
-    made with the switch is remembered per browser.
+  - Header: toggles for the sidebar, editor and output (never both panes
+    hidden; remembered per browser), bilby-dev logo, status, test-mode switch
+    (amber page while on), links, and an auto/light/dark theme button. Test
+    mode is on by default when served locally and off on the live site; a
+    choice made with the switch is remembered per browser.
+  - Start-up and installs show a download progress bar along the header and
+    the amount in the status text, from the file sizes in `wheels/sizes.json`
+    (`scripts/write_sizes.py`). It updates in bursts: while Pyodide sets up a
+    large package the worker cannot report.
   - Drag the gap between editor and output to resize them.
 - **Worker** (`worker.js`, `py/bootstrap.py`): Pyodide 0.29.5 from jsDelivr.
   Installs bilby at startup, LALSuite on the first GW example, and extras
   (gwpy, gwosc, gwinc, scikit-image) when an example needs them.
   `command_line_args.clean` is always on, so reruns never resume from a
-  checkpoint; `bilby_test_mode` follows the switch.
+  checkpoint; `bilby_test_mode` follows the switch. tqdm's monitor thread
+  is turned off, since Pyodide cannot start threads.
 - **bilby and examples** come from one pinned commit of bilby-dev/bilby
   `main` (`bilby-commit.txt`; `scripts/fetch-bilby.sh --update` moves it).
   `scripts/adapt_examples.py` edits them for Pyodide (pymultinest → nestle,
@@ -87,11 +94,19 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
   site, on pushes and pull requests; deploys (`pages.yml`) do not wait for it.
 - `eccentric_inspiral` works: GWSignal now triggers the gwpy install.
 - **Editor** — CodeMirror 6 replaced the textarea.
-- **Page polish** — example search and hideable sidebar, formatted
-  docstrings, blank editor, script and results downloads, collapsible runs,
-  figure viewer, copy output, resizable panes, theme switch, logo, restyled
-  example tree, phone layout, and cache-busting on deploy. Test mode is now
-  off by default on the live site.
+- **Page polish** — example search and hideable sidebar, editor and output
+  toggles, formatted docstrings, blank editor, script and results downloads,
+  collapsible runs, figure viewer, copy output, resizable panes, theme
+  switch, logo, restyled example tree, phone layout, and cache-busting on
+  deploy. Test mode is now off by default on the live site.
+- **Progress** — a download progress bar for start-up and installs; tqdm
+  lines drawn as bars; tqdm's thread warning silenced.
+- **Accessibility** — axe-core finds no issues (apart from a false positive
+  on the editor's scroll area) at desktop and phone sizes, in light and dark.
+  Screen readers hear run started/finished/failed instead of every output
+  line; the editor explains Escape then Tab to leave it; a skip link; the
+  phone drawer keeps focus inside and returns it; the divider works from the
+  keyboard; example support status is announced; contrast fixes.
 
 ## Next steps
 
@@ -113,13 +128,8 @@ In rough priority order.
 4. **Upstream bilby issues.** `PriorDict.rescale` with joint priors (#886);
    the GWSignal `ImportError` hides its cause (chain it with `from`).
 5. **Polish.**
-   - A progress bar for start-up and installs (Pyodide, bilby's packages,
-     LALSuite on the first GW example), which now only show status text.
-   - Optionally, richer tqdm bars like Jupyter's, if it needs no real changes
-     to the packages: `tqdm.notebook` needs ipywidgets and a Jupyter kernel,
-     so the likelier route is the page drawing a bar from tqdm's text lines
-     (a percentage only when tqdm knows the total; dynesty's does not).
-   - An accessibility check (keyboard use, screen readers, contrast).
+   - Try the page with a real screen reader (VoiceOver, NVDA); so far only
+     axe-core and scripted keyboard tests.
    - A sharper logo (the only copy found is the 192px GitHub avatar).
    - Docstrings that describe samplers the adaptations replaced (e.g.
      PyMultiNest in `slabspike_example`) could be noted or adjusted.
