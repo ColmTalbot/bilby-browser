@@ -2,6 +2,9 @@
 examples/
 wheels/
 licenses.html
+editor.bundle.js
+editor.bundle.LICENSE.txt
+editor.meta.json
 .cache/
 node_modules/
 .claude/

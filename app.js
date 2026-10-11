@@ -3,6 +3,7 @@
 
 const $ = (id) => document.getElementById(id);
 const output = $("output");
+const editor = BilbyEditor.createEditor($("code"), { onRun: () => run() });
 let worker = null;
 let current = null; // {path, files, original}
 let running = false;
@@ -117,11 +118,21 @@ function startWorker() {
         break;
       case "error":
         append(data.text, "error");
+        markTracebackLine(data.text);
         setStatus(data.fatal ? "Failed to start Python" : "Ready (last run failed)", data.fatal ? "err" : "");
         setRunning(false);
         break;
     }
   };
+}
+
+// Highlight the line of the example that a traceback points at: the last
+// frame in the example itself (the worker runs it with filename = its path).
+function markTracebackLine(text) {
+  if (!current) return;
+  const frame = new RegExp(`File "${current.path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}", line (\\d+)`, "g");
+  const lines = [...text.matchAll(frame)].map((m) => Number(m[1]));
+  if (lines.length) editor.markErrorLine(lines[lines.length - 1]);
 }
 
 function run() {
@@ -130,7 +141,8 @@ function run() {
   setStatus("Running " + current.path + "…");
   const testMode = $("test-mode").checked;
   append(">>> " + current.path + (testMode ? " (test mode)" : ""), testMode ? "run test" : "run");
-  worker.postMessage({ type: "run", path: current.path, code: $("code").value, files: current.files, testMode });
+  editor.markErrorLine(null);
+  worker.postMessage({ type: "run", path: current.path, code: editor.getValue(), files: current.files, testMode });
 }
 
 function stop() {
@@ -184,7 +196,7 @@ async function select(path) {
   const response = await fetch("examples/" + path);
   const code = await response.text();
   current = { path, files: JSON.parse(link.dataset.files), original: code };
-  $("code").value = code;
+  editor.load(code);
   $("title").textContent = path;
   $("description").textContent = link.title.split("\n\n")[0];
   showNotes(JSON.parse(link.dataset.info));
@@ -239,16 +251,7 @@ $("test-mode").addEventListener("change", (e) => {
 $("run").addEventListener("click", run);
 $("stop").addEventListener("click", stop);
 $("clear").addEventListener("click", () => { output.innerHTML = ""; line = null; });
-$("reset").addEventListener("click", () => { if (current) $("code").value = current.original; });
-$("code").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    run();
-  } else if (e.key === "Tab") {
-    e.preventDefault();
-    e.target.setRangeText("    ", e.target.selectionStart, e.target.selectionEnd, "end");
-  }
-});
+$("reset").addEventListener("click", () => { if (current) editor.reset(current.original); });
 
 startWorker();
 main();

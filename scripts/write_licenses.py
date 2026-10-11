@@ -58,6 +58,15 @@ def main():
             f"{link(lal['url'], 'wheel as built')} (sha256 <code>{lal['sha256'][:16]}…</code>)",
         ),
     ]
+    npm = json.loads((ROOT / "package-lock.json").read_text())["packages"]
+    cm_version = npm["node_modules/codemirror"]["version"]
+    hosted.append(row(
+        f"CodeMirror {html.escape(cm_version)} and its packages (code editor)", "MIT",
+        link("editor.bundle.LICENSE.txt", "licences"),
+        f"{link('https://github.com/codemirror/dev', 'codemirror/dev')} and the package versions pinned in "
+        f"{link(REPO + '/blob/main/package-lock.json', 'package-lock.json')}; bundled by esbuild "
+        f"from {link(REPO + '/blob/main/editor/editor.js', 'editor/editor.js')}",
+    ))
     bundled = [
         row(
             html.escape(f"{lib['name']} {lib['version']}".strip()), html.escape(lib["license"]),

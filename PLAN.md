@@ -7,7 +7,10 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
 ## How it works now
 
 - **Page** (`index.html`, `app.js`): nested example tree that mirrors bilby's
-  `examples/`, editor, streamed output (progress bars rewrite in place) and
+  `examples/`, a CodeMirror 6 editor (`editor/editor.js`, bundled into
+  `editor.bundle.js` by `npm run build:editor`; Python highlighting, line
+  numbers, Ctrl/⌘+Enter to run, undoable Reset, and the line a traceback
+  points at highlighted), streamed output (progress bars rewrite in place) and
   figures. Stop terminates the worker and starts a new one. A header switch
   turns bilby test mode on (amber page) or off; it defaults to on and is
   remembered per browser.
@@ -87,6 +90,6 @@ In rough priority order.
    Upstream: ship the bundled libraries' licence files in the wheel.
 4. **Upstream bilby issues.** `PriorDict.rescale` with joint priors (#886);
    the GWSignal `ImportError` hides its cause (chain it with `from`).
-5. **Polish.** Editor (e.g. CodeMirror), a real progress bar, downloading
+5. **Polish.** A real progress bar, downloading
    results (result JSON, figures), a "copy as script" button, phone layout
    and accessibility checks.

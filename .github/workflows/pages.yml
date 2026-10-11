@@ -32,6 +32,17 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install Node tools (CodeMirror, esbuild, Pyodide, Playwright)
+        run: npm ci
+
+      - name: Build the code editor (CodeMirror)
+        run: npm run build:editor
+
       - name: Fetch bilby (examples and wheel) at the pinned commit
         run: scripts/fetch-bilby.sh
 
@@ -53,18 +64,11 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir _site
-          cp -r index.html licenses.html app.js worker.js py wheels examples licenses _site/
+          cp -r index.html licenses.html app.js editor.bundle.js editor.bundle.LICENSE.txt worker.js py wheels examples licenses _site/
           ls -la _site _site/wheels
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-
-      - name: Install test tools (Pyodide for Node, Playwright)
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
 
       - name: Run every supported example in Node (bilby test mode)
         run: node scripts/test-all.mjs
