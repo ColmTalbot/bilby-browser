@@ -8,14 +8,14 @@
   :root {
     --bg: #ffffff; --fg: #1d1d1f; --muted: #6b6b70; --panel: #f5f5f7;
     --border: #d8d8dc; --accent: #2457c5; --ok: #1d7f3a; --err: #b3261e;
-    --code-bg: #fbfbfc;
+    --code-bg: #fbfbfc; --warn: #8a5a00; --warn-bg: #fff4d6; --warn-border: #e0a800;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --panel: #202024;
       --border: #34343a; --accent: #7aa2ff; --ok: #5cc27a; --err: #ff7b72;
-      --code-bg: #1b1b1e;
+      --code-bg: #1b1b1e; --warn: #ffcc66; --warn-bg: #3a2e12; --warn-border: #c99400;
     }
   }
   * { box-sizing: border-box; }
@@ -54,12 +54,34 @@
   #notes .unsupported { color: var(--err); }
   #notes .partial { color: var(--fg); }
   #notes .changes { color: var(--muted); }
-  .toggle { font-size: 13px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  /* test-mode switch and warning colours (body.test-mode while it is on) */
+  .toggle { font-size: 13px; display: inline-flex; align-items: center; gap: 6px;
+            cursor: pointer; padding: 3px 10px 3px 6px; border-radius: 999px;
+            border: 1px solid var(--border); background: var(--panel); user-select: none; }
+  .toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .toggle .track { width: 28px; height: 16px; border-radius: 8px; background: var(--border);
+                   position: relative; transition: background 0.15s; }
+  .toggle .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px;
+                          height: 12px; border-radius: 50%; background: #fff;
+                          transition: transform 0.15s; }
+  .toggle input:checked + .track { background: var(--warn-border); }
+  .toggle input:checked + .track::after { transform: translateX(12px); }
+  .toggle input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #test-banner { display: none; font-size: 12px; color: var(--warn); }
+  body.test-mode header { background: var(--warn-bg); border-bottom: 2px solid var(--warn-border); }
+  body.test-mode .toggle { border-color: var(--warn-border); color: var(--warn); font-weight: 600; }
+  body.test-mode #test-banner { display: inline; }
+  body.test-mode #output { border-color: var(--warn-border); }
+  body.test-mode #run { background: var(--warn-border); border-color: var(--warn-border); color: #1d1d1f; }
+  #output .run.test { color: var(--warn); }
 
   .pane { display: flex; flex-direction: column; min-height: 0; gap: 8px; }
   .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .toolbar .spacer { flex: 1; }
-  #title { font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #title { font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace;
+           min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis;
+           white-space: nowrap; }
+  .pane > .toolbar { flex-wrap: nowrap; }
   #description { font-size: 12px; color: var(--muted); margin: 0; }
   button { font: inherit; font-size: 13px; padding: 6px 10px;
            border: 1px solid var(--border); border-radius: 6px;
@@ -90,6 +112,12 @@
 <header>
   <h1>bilby in the browser</h1>
   <span id="status">Loading…</span>
+  <label class="toggle" title="bilby test mode (--bilby-test-mode): samplers that support it (dynesty, nestle) run only a couple of iterations, and corner and data plots are skipped. Results are not real posteriors.">
+    <input type="checkbox" id="test-mode" role="switch" checked>
+    <span class="track" aria-hidden="true"></span>
+    <span>Test mode</span>
+  </label>
+  <span id="test-banner">Test mode: sampling stops after a few iterations; results are not real posteriors</span>
   <a id="source" class="hint"></a>
 </header>
 <main>
@@ -98,9 +126,6 @@
     <div class="toolbar">
       <span id="title"></span>
       <span class="spacer"></span>
-      <label class="toggle" title="bilby test mode (--bilby-test-mode): samplers that support it (dynesty, nestle) run only a couple of iterations, and corner and data plots are skipped">
-        <input type="checkbox" id="test-mode" checked> Test mode
-      </label>
       <span class="hint">Ctrl/⌘+Enter to run</span>
       <button id="reset" title="Discard your edits">Reset</button>
       <button id="stop" disabled>Stop</button>

@@ -129,7 +129,7 @@ function run() {
   setRunning(true);
   setStatus("Running " + current.path + "…");
   const testMode = $("test-mode").checked;
-  append(">>> " + current.path + (testMode ? " (test mode)" : ""), "run");
+  append(">>> " + current.path + (testMode ? " (test mode)" : ""), testMode ? "run test" : "run");
   worker.postMessage({ type: "run", path: current.path, code: $("code").value, files: current.files, testMode });
 }
 
@@ -225,8 +225,15 @@ try {
   const saved = localStorage.getItem("bilby-test-mode");
   if (saved !== null) $("test-mode").checked = saved === "1";
 } catch {}
+const showTestMode = () => {
+  const on = $("test-mode").checked;
+  document.body.classList.toggle("test-mode", on);
+  $("run").title = on ? "Run in bilby test mode" : "Run";
+};
+showTestMode();
 $("test-mode").addEventListener("change", (e) => {
   try { localStorage.setItem("bilby-test-mode", e.target.checked ? "1" : "0"); } catch {}
+  showTestMode();
 });
 
 $("run").addEventListener("click", run);
