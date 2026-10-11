@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bilby</title>
+<link rel="icon" href="assets/bilby-logo.jpg">
 <style>
   :root {
     --bg: #ffffff; --fg: #1d1d1f; --muted: #6b6b70; --panel: #f5f5f7;
@@ -29,18 +30,27 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg); }
   header { padding: 12px 16px; border-bottom: 1px solid var(--border);
-           display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
-  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+           display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  header h1 img { border-radius: 6px; }
+  body.tree-hidden nav { display: none; }
+  body.tree-hidden main { grid-template-columns: minmax(0, var(--left, 1fr)) minmax(0, var(--right, 1fr)); }
   #status { font-size: 13px; color: var(--muted); }
-  #source { margin-left: auto; color: var(--muted); }
+  header .links { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  header .links a { color: var(--muted); }
+  .icon-button { padding: 5px; line-height: 0; color: var(--muted); background: transparent;
+                 border-color: transparent; }
+  .icon-button:hover { color: var(--fg); background: var(--panel); border-color: var(--border); }
+  .icon-button svg { width: 18px; height: 18px; }
   #status.ok { color: var(--ok); } #status.err { color: var(--err); }
   main { display: grid; grid-template-columns: 260px minmax(0, 1fr) minmax(0, 1fr);
          gap: 16px; padding: 12px 16px; height: calc(100vh - 50px); }
   @media (max-width: 1100px) {
+    body.tree-hidden main { grid-template-columns: minmax(0, 1fr); }
     main { grid-template-columns: 220px minmax(0, 1fr); height: auto; }
     #output-pane { grid-column: 1 / -1; }
   }
-  @media (max-width: 700px) { main { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) { main, body.tree-hidden main { grid-template-columns: 1fr; } }
 
   nav { overflow: auto; font-size: 13px; border-right: 1px solid var(--border);
         padding-right: 8px; }
@@ -75,10 +85,8 @@
   .toggle input:checked + .track { background: var(--warn-border); }
   .toggle input:checked + .track::after { transform: translateX(12px); }
   .toggle input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #test-banner { display: none; font-size: 12px; color: var(--warn); }
   body.test-mode header { background: var(--warn-bg); border-bottom: 2px solid var(--warn-border); }
   body.test-mode .toggle { border-color: var(--warn-border); color: var(--warn); font-weight: 600; }
-  body.test-mode #test-banner { display: inline; }
   body.test-mode #output { border-color: var(--warn-border); }
   body.test-mode #run { background: var(--warn-border); border-color: var(--warn-border); color: #1d1d1f; }
   #output .run.test { color: var(--warn); }
@@ -119,16 +127,23 @@
 </head>
 <body>
 <header>
-  <h1>Bilby</h1>
+  <button id="toggle-tree" class="icon-button" aria-controls="tree" aria-expanded="true" title="Hide the example list">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5"/><line x1="7.75" y1="4" x2="7.75" y2="16"/>
+    </svg>
+  </button>
+  <h1><img src="assets/bilby-logo.jpg" alt="Bilby" title="Bilby" width="28" height="28"></h1>
   <span id="status">Loading…</span>
-  <label class="toggle" title="bilby test mode (--bilby-test-mode): samplers that support it (dynesty, nestle) run only a couple of iterations, and corner and data plots are skipped. Results are not real posteriors.">
+  <label class="toggle" title="bilby test mode (--bilby-test-mode): sampling stops after a few iterations (dynesty, nestle) and corner and data plots are skipped. Results are not real posteriors.">
     <input type="checkbox" id="test-mode" role="switch" checked>
     <span class="track" aria-hidden="true"></span>
     <span>Test mode</span>
   </label>
-  <span id="test-banner">Test mode: sampling stops after a few iterations; results are not real posteriors</span>
-  <a id="source" class="hint"></a>
-  <a href="licenses.html" class="hint">Licences</a>
+  <span class="links hint">
+    <a id="source"></a>
+    <a href="https://github.com/ColmTalbot/bilby-browser">Site source</a>
+    <a href="licenses.html">Licences</a>
+  </span>
 </header>
 <main>
   <nav id="tree" aria-label="Examples"></nav>
@@ -136,7 +151,7 @@
     <div class="toolbar">
       <span id="title"></span>
       <span class="spacer"></span>
-      <span class="hint">Ctrl/⌘+Enter to run</span>
+      <button id="new" title="Open a blank editor (kept in this browser)">New</button>
       <button id="reset" title="Discard your edits">Reset</button>
       <button id="stop" disabled>Stop</button>
       <button id="run" class="primary" disabled>Run</button>

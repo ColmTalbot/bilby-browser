@@ -7,10 +7,23 @@ const $ = (id) => document.getElementById(id);
 const VERSION = new URL(document.currentScript.src).search;
 const versioned = (path) => path + VERSION;
 const output = $("output");
-const editor = BilbyEditor.createEditor($("code"), { onRun: () => run() });
+const SCRATCH = "scratch.py"; // the blank editor, at #scratch
+const editor = BilbyEditor.createEditor($("code"), {
+  onRun: () => run(),
+  onChange: (text) => { if (current?.path === SCRATCH) store("bilby-scratch", text); },
+  placeholderText: "# A blank editor: bilby, its samplers and LALSuite are available.\n# Ctrl/⌘+Enter to run.",
+});
 let worker = null;
 let current = null; // {path, files, original}
 let running = false;
+
+// localStorage, which can be unavailable (private windows, blocked storage)
+function stored(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function store(key, value) {
+  try { localStorage.setItem(key, value); } catch {}
+}
 
 function setStatus(text, cls = "") {
   $("status").textContent = text;
@@ -189,6 +202,7 @@ function buildTree(node, parent, depth = 0) {
 }
 
 async function select(path) {
+  if (path === "scratch") return openScratch();
   const link = document.querySelector(`#tree a[data-path="${CSS.escape(path)}"]`);
   if (!link) return;
   for (const a of document.querySelectorAll("#tree a.active")) a.classList.remove("active");
@@ -204,6 +218,17 @@ async function select(path) {
   $("title").textContent = path;
   $("description").textContent = link.title.split("\n\n")[0];
   showNotes(JSON.parse(link.dataset.info));
+}
+
+// A blank editor, not tied to an example; its text is kept in this browser.
+function openScratch() {
+  for (const a of document.querySelectorAll("#tree a.active")) a.classList.remove("active");
+  current = { path: SCRATCH, files: [], original: "" };
+  editor.load(stored("bilby-scratch") || "");
+  $("title").textContent = SCRATCH;
+  $("description").textContent = "A blank editor. Its contents are kept in this browser; Reset clears it.";
+  showNotes({ changes: [], support: null });
+  editor.focus();
 }
 
 // What differs from the upstream example, and whether it can run here.
@@ -237,22 +262,37 @@ async function main() {
 }
 
 // bilby test mode: on by default while developing; remembered per browser
-try {
-  const saved = localStorage.getItem("bilby-test-mode");
-  if (saved !== null) $("test-mode").checked = saved === "1";
-} catch {}
+const savedTestMode = stored("bilby-test-mode");
+if (savedTestMode !== null) $("test-mode").checked = savedTestMode === "1";
 const showTestMode = () => {
   const on = $("test-mode").checked;
   document.body.classList.toggle("test-mode", on);
-  $("run").title = on ? "Run in bilby test mode" : "Run";
+  $("run").title = (on ? "Run in bilby test mode" : "Run") + " (Ctrl/⌘+Enter)";
 };
 showTestMode();
 $("test-mode").addEventListener("change", (e) => {
-  try { localStorage.setItem("bilby-test-mode", e.target.checked ? "1" : "0"); } catch {}
+  store("bilby-test-mode", e.target.checked ? "1" : "0");
   showTestMode();
 });
 
+// the example list can be hidden; remembered per browser
+const showTree = (visible) => {
+  document.body.classList.toggle("tree-hidden", !visible);
+  $("toggle-tree").setAttribute("aria-expanded", String(visible));
+  $("toggle-tree").title = visible ? "Hide the example list" : "Show the example list";
+};
+showTree(stored("bilby-tree-hidden") !== "1");
+$("toggle-tree").addEventListener("click", () => {
+  const visible = document.body.classList.contains("tree-hidden");
+  store("bilby-tree-hidden", visible ? "0" : "1");
+  showTree(visible);
+});
+
 $("run").addEventListener("click", run);
+$("new").addEventListener("click", () => {
+  if (location.hash === "#scratch") openScratch();
+  else location.hash = "scratch";
+});
 $("stop").addEventListener("click", stop);
 $("clear").addEventListener("click", () => { output.innerHTML = ""; line = null; });
 $("reset").addEventListener("click", () => { if (current) editor.reset(current.original); });

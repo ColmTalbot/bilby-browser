@@ -6,7 +6,7 @@ import { indentWithTab } from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
 import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { EditorState, Prec, StateEffect, StateField } from "@codemirror/state";
-import { Decoration, EditorView, keymap } from "@codemirror/view";
+import { Decoration, EditorView, keymap, placeholder } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { basicSetup } from "codemirror";
 
@@ -30,6 +30,7 @@ const theme = EditorView.theme({
   ".cm-activeLineGutter": { backgroundColor: "var(--active-line)" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "var(--selection) !important" },
   ".cm-error-line": { backgroundColor: "var(--error-line)" },
+  ".cm-placeholder": { color: "var(--muted)", fontStyle: "italic" },
   ".cm-panels": { backgroundColor: "var(--panel)", color: "var(--fg)" },
   ".cm-tooltip": { backgroundColor: "var(--panel)", color: "var(--fg)", border: "1px solid var(--border)" },
 });
@@ -52,7 +53,7 @@ const errorLine = StateField.define({
   provide: (field) => EditorView.decorations.from(field),
 });
 
-export function createEditor(parent, { onRun, label = "Python code" } = {}) {
+export function createEditor(parent, { onRun, onChange, label = "Python code", placeholderText = "" } = {}) {
   const extensions = [
     Prec.highest(keymap.of([{ key: "Mod-Enter", preventDefault: true, run: () => { onRun?.(); return true; } }])),
     basicSetup,
@@ -64,6 +65,8 @@ export function createEditor(parent, { onRun, label = "Python code" } = {}) {
     theme,
     errorLine,
     EditorView.contentAttributes.of({ "aria-label": label, spellcheck: "false" }),
+    placeholder(placeholderText),
+    EditorView.updateListener.of((update) => { if (update.docChanged) onChange?.(update.state.doc.toString()); }),
   ];
   const state = (doc) => EditorState.create({ doc, extensions });
   const view = new EditorView({ state: state(""), parent });

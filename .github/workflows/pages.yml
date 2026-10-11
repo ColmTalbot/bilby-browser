@@ -68,9 +68,9 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir _site
+          cp -r index.html licenses.html app.js editor.bundle.js editor.bundle.LICENSE.txt worker.js py assets wheels examples licenses _site/
           # make browsers fetch this deploy's scripts instead of cached ones
           sed -i "s/?v=dev/?v=${GITHUB_SHA::8}/g" _site/index.html
-          cp -r index.html licenses.html app.js editor.bundle.js editor.bundle.LICENSE.txt worker.js py wheels examples licenses _site/
 
       - uses: actions/configure-pages@v5
 
