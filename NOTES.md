@@ -14,7 +14,6 @@ These notes were written from the LALSuite Pyodide work (branch
   - Pyodide 0.29.5, Python 3.13, ABI `pyodide_2025_0_wasm32`.
   - Example names: `lalsuite-7.26.16-cp313-cp313-pyodide_2025_0_wasm32.whl`
     (release, 15 MB), `lalsuite-7.26.16.1-…` (master, 19 MB).
-    (about 19 MB).
   - Waveforms tested under Node (LALSimulation's Python tests pass except
     the NRSur7dq4Remnant cases, which also fail natively) and in Chrome
     (IMRPhenomXPHM, SEOBNRv4, NRSur3dq8Remnant, gwsignal).
@@ -45,7 +44,8 @@ These notes were written from the LALSuite Pyodide work (branch
 
   The release branch is the `lalsuite-v7.26.16` tag plus the
   `pyodide-wheels` commits. The master builds had problems in use, so
-  prefer the release.
+  prefer the release. The site pins the release build (job 5186199) in
+  `lalsuite-wheel.json`.
 
 - Or the latest from the branch, which only finds jobs in pipelines where
   every job succeeded (so it fails while, or if, other jobs fail):

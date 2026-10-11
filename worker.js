@@ -153,7 +153,7 @@ async function init() {
   post("ready", { text: `bilby ${version} · Pyodide ${pyodide.version}` });
 }
 
-// LALSuite is about 19 MB, so install it the first time a GW example runs.
+// LALSuite is about 15 MB, so install it the first time a GW example runs.
 function installLalsuite() {
   lalsuite ??= withProgress("Installing LALSuite", groupBytes(["lalsuite"]), async () => {
     post("info", { text: `LAL ${await py("install_lalsuite")()} installed` });

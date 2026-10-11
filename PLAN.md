@@ -84,7 +84,7 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
 | bilby | wheel built from the pinned commit, served by the site |
 | dynesty, emcee, corner, dill, nestle, nestle-bilby, bilby's dependencies, gwpy and its dependencies, gwosc, gwinc | pinned in `packages.lock.json`, served by the site |
 | igwn-segments 2.1.1 | pure-Python rebuild of the sdist, served by the site |
-| LALSuite 7.26.16.1 | GitLab CI artifact of colm.talbot/lalsuite (commit `4554d05a`), served by the site |
+| LALSuite 7.26.16 | GitLab CI artifact of colm.talbot/lalsuite, branch `pyodide-wheels-v7.26.16` (the `lalsuite-v7.26.16` tag plus the Pyodide build commits, `c14584f2`), served by the site |
 
 ### Example status (test mode, Node, bilby `f2d03634`)
 
