@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node scripts/test-examples.mjs"
+    "test": "node scripts/test-all.mjs",
+    "test:browser": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "pyodide": "0.29.5"
   }
 }
