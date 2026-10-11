@@ -34,7 +34,15 @@ new = (
     "except ImportError:  # pure-Python build for Pyodide\n"
     "    from ._segments_py import NegInfinity, PosInfinity, infinity, segment, segmentlist\n"
 )
-open(dst, "w").write(text.replace(old, new))
+notice = (
+    "# Modified 2026-10-11 by bilby-browser (https://github.com/ColmTalbot/bilby-browser):\n"
+    "# falls back to the pure-Python implementation in _segments_py when the C\n"
+    "# extension is not available, and is packaged without the C extension for\n"
+    "# Pyodide. Built by scripts/build-igwn-segments.sh from the unmodified\n"
+    "# igwn-segments sdist on PyPI. Licensed, like the original, under the GNU\n"
+    "# General Public License, version 3 or later (see LICENSE).\n"
+)
+open(dst, "w").write(notice + text.replace(old, new))
 PY
 grep -q "^NegInfinity\|^PosInfinity" "$PKG/_segments_py.py" \
   || { echo "_segments_py.py does not define NegInfinity/PosInfinity" >&2; exit 1; }
@@ -47,9 +55,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "igwn-segments"
 version = "${VERSION}"
-description = "Pure-Python build of igwn-segments for Pyodide"
+description = "Pure-Python build of igwn-segments for Pyodide (modified; see igwn_segments/__init__.py)"
+readme = {text = """Modified build of igwn-segments ${VERSION} for Pyodide, made by
+scripts/build-igwn-segments.sh in https://github.com/ColmTalbot/bilby-browser
+on 2026-10-11: igwn_segments/__init__.py falls back to the pure-Python
+implementation (_segments_py) and the C extension is not built. Original
+source: https://pypi.org/project/igwn-segments/${VERSION}/ (GPL-3.0-or-later).
+""", content-type = "text/plain"}
 requires-python = ">=3.9"
 license = {text = "GPL-3.0-or-later"}
+authors = [{name = "Kipp Cannon"}, {name = "Tito Dal Canton"}, {name = "Duncan Macleod"}, {name = "Leo Singer"}]
 
 [tool.setuptools]
 packages = ["igwn_segments"]

@@ -13,46 +13,132 @@ import time
 
 import pyodide_js
 
-# Packages built by Pyodide (from its CDN) and pure wheels from PyPI. bilby
-# itself is a wheel built from the pinned commit (scripts/fetch-bilby.sh).
+# What the site installs, in groups: "bilby" at startup, "lalsuite" for the
+# first GW example, and one group per extra. Each group lists packages from
+# the Pyodide distribution (loadPackage) and from PyPI (micropip).
+#
+# These specs are only *resolved* by scripts/lock-packages.mjs, which records
+# the exact PyPI wheels each group needs in packages.lock.json. The site and
+# the Node runner install from that lock: the wheels are served by the site
+# (wheels/pypi/, downloaded by scripts/fetch-pypi-wheels.py), installed
+# without dependency resolution, so page loads are reproducible and do not
+# depend on PyPI. The local wheels (bilby, LALSuite, igwn-segments; see
+# wheels/index.json) are installed separately.
+#
 # bilby-cython is optional for bilby but makes the GW time and geometry
-# functions faster.
-PYODIDE_PACKAGES = [
-    "micropip", "numpy", "scipy", "matplotlib", "pandas", "h5py",
-    "bilby-cython", "tqdm", "attrs",
-]
-PYPI_PACKAGES = [
-    "dynesty==3.1.0", "emcee==3.1.6", "corner==2.3.0", "dill==0.4.1", "nestle==0.2.1",
-]
-# Samplers that bilby main provides as plugins (found through the
-# bilby.samplers entry point). Installed without dependencies: their only
-# other requirement is bilby itself, and micropip may not accept our
-# development build of bilby as satisfying bilby>=x.y and fetch a release.
-PLUGINS = ["nestle-bilby==0.1.1"]
-EXAMPLES_ROOT = "/home/pyodide/examples"
-
-# Optional packages, installed the first time an example needs them. An extra
-# is needed when its pattern matches the example's code: an import, or a bilby
-# function that imports the package internally. "wheels" are local wheels
-# from wheels/ (by index.json key) that must be installed first.
-EXTRAS = {
-    "skimage": {"pattern": r"\bskimage\b", "pyodide": ["scikit-image"]},
-    "gwinc": {"pattern": r"\bgwinc\b", "pypi": ["gwinc"]},
-    "gwosc": {"pattern": r"\bgwosc\b|get_event_time", "pypi": ["gwosc"]},
-    "gwpy": {
-        "pattern": r"\bgwpy\b|plot_time_domain_data|fetch_open_data",
-        "wheels": ["igwn_segments"],
+# functions faster. nestle-bilby provides the nestle sampler through the
+# bilby.samplers entry point; it is installed without dependencies because
+# micropip may not accept our development build of bilby as satisfying its
+# bilby>=x.y requirement.
+GROUPS = {
+    "bilby": {
+        "pyodide": ["micropip", "numpy", "scipy", "matplotlib", "pandas", "h5py",
+                    "bilby-cython", "tqdm", "attrs"],
+        "pypi": ["dynesty==3.1.0", "emcee==3.1.6", "corner==2.3.0", "dill==0.4.1",
+                 "nestle==0.2.1"],
+        "pypi_nodeps": ["nestle-bilby==0.1.1"],
+        "local": "bilby",
     },
+    # LALSuite's own requirements (igwn-ligolw, ...) are not all installable
+    # in Pyodide, so it is installed without them.
+    "lalsuite": {"pyodide": ["astropy"], "local": "lalsuite", "local_nodeps": True},
+    # gwpy recipe from the LALSuite Pyodide work (see NOTES.md): dqsegdb2 and
+    # gwdatafind need igwn-auth-utils, which needs gssapi (Kerberos) and
+    # cannot exist on wasm, so these are installed without dependencies, and
+    # authenticated LIGO data access does not work. Pyodide's own cryptography
+    # is used, and ssl and sqlite3 are not loaded by default.
+    "gwpy": {
+        "pyodide": ["astropy", "ssl", "sqlite3", "cryptography", "pyodide-http"],
+        "local": "igwn_segments",
+        "pypi": ["PyJWT", "dateparser", "gwosc", "ligotimegps", "python-dateutil",
+                 "requests"],
+        "pypi_nodeps": ["gwpy==4.0.2", "dqsegdb2", "gwdatafind", "igwn-auth-utils",
+                        "safe-netrc", "scitokens"],
+    },
+    "gwosc": {"pypi": ["gwosc"]},
+    "gwinc": {"pypi": ["gwinc"]},
+    "skimage": {"pyodide": ["scikit-image"]},
 }
-_installed_extras = set()
+
+# Extras are installed the first time an example needs them: when a pattern
+# matches the example's code (an import, or a bilby function that imports the
+# package internally; bilby's GWSignal generator imports
+# lalsimulation.gwsignal, which imports gwpy).
+EXTRAS = {
+    "skimage": r"\bskimage\b",
+    "gwinc": r"\bgwinc\b",
+    "gwosc": r"\bgwosc\b|get_event_time",
+    "gwpy": r"\bgwpy\b|plot_time_domain_data|fetch_open_data|GWSignal|gwsignal",
+}
+EXAMPLES_ROOT = "/home/pyodide/examples"
+REPORT = "Please report this at https://github.com/ColmTalbot/bilby-browser/issues"
+
+_lock = None  # packages.lock.json, set by set_lock()
+_pypi_base_url = ""
+_wheel_urls = {}  # index.json key -> URL of a local wheel
+_installed = set()
 
 
-async def install_bilby(wheel_url):
-    await pyodide_js.loadPackage(PYODIDE_PACKAGES)
+def set_lock(lock_json, pypi_base_url, wheel_urls):
+    """Install from `lock_json` (the text of packages.lock.json), with its
+    PyPI wheels under `pypi_base_url`. `wheel_urls` maps wheels/index.json
+    keys to URLs of the local wheels. Without a lock (only when
+    scripts/lock-packages.mjs resolves the groups), PyPI is used."""
+    import json
+
+    global _lock, _pypi_base_url
+    _lock = json.loads(lock_json) if lock_json else None
+    _pypi_base_url = pypi_base_url
+    _wheel_urls.update(dict(wheel_urls))
+    if _lock and _lock["pyodide_version"] != pyodide_js.version:
+        raise RuntimeError(
+            f"packages.lock.json was made for Pyodide {_lock['pyodide_version']}, "
+            f"but this is Pyodide {pyodide_js.version}. {REPORT}"
+        )
+
+
+async def install_group(name):
+    """Install one group of packages (see GROUPS), once."""
+    if name in _installed:
+        return
+    group = GROUPS[name]
+    local = group.get("local")
+    if local and not _wheel_urls.get(local):
+        raise RuntimeError(f"This site is missing its {local} package. {REPORT}")
+    if _lock is None:
+        await _resolve_group(group)
+    else:
+        locked = _lock["groups"][name]
+        await pyodide_js.loadPackage(locked["pyodide"])
+        import micropip
+
+        urls = [_pypi_base_url + wheel["file"] for wheel in locked["pypi"]]
+        if local:
+            urls.append(_wheel_urls[local])
+        if urls:
+            await micropip.install(urls, deps=False)
+    _installed.add(name)
+
+
+async def _resolve_group(group):
+    """Install a group by resolving its specs against PyPI (lock generation)."""
+    await pyodide_js.loadPackage(group.get("pyodide", []))
     import micropip
 
-    await micropip.install([wheel_url, *PYPI_PACKAGES])
-    await micropip.install(PLUGINS, deps=False)
+    local = [_wheel_urls[group["local"]]] if group.get("local") else []
+    with_deps, without_deps = group.get("pypi", []), group.get("pypi_nodeps", [])
+    if group.get("local_nodeps"):
+        without_deps = local + without_deps
+    else:
+        with_deps = local + with_deps
+    if with_deps:
+        await micropip.install(with_deps)
+    if without_deps:
+        await micropip.install(without_deps, deps=False)
+
+
+async def install_bilby():
+    await install_group("bilby")
 
     import matplotlib
 
@@ -87,13 +173,10 @@ def set_test_mode(enabled):
     bilby.core.utils.command_line_args.bilby_test_mode = bool(enabled)
 
 
-async def install_lalsuite(url):
-    """Install the LALSuite wheel. Its install_requires are not all available
-    in Pyodide, so dependencies are skipped. bilby.gw also needs astropy."""
-    await pyodide_js.loadPackage(["astropy"])
-    import micropip
-
-    await micropip.install(url, deps=False)
+async def install_lalsuite():
+    """Install LALSuite (its own requirements are not all available in
+    Pyodide, so it is installed without them) and astropy for bilby.gw."""
+    await install_group("lalsuite")
     import lal
 
     return lal.VCSInfo.version
@@ -102,62 +185,17 @@ async def install_lalsuite(url):
 def extras_for(code):
     """Names of the extras that `code` needs and that are not installed yet."""
     return [
-        name for name, extra in EXTRAS.items()
-        if name not in _installed_extras and re.search(extra["pattern"], code)
+        name for name, pattern in EXTRAS.items()
+        if name not in _installed and re.search(pattern, code)
     ]
 
 
-async def install_extras(names, wheel_urls):
-    """Install the extras in `names`. `wheel_urls` maps index.json keys to
-    URLs of local wheels."""
-    import micropip
-
-    wheel_urls = dict(wheel_urls)
+async def install_extras(names):
     for name in names:
-        extra = EXTRAS[name]
-        for key in extra.get("wheels", []):
-            if not wheel_urls.get(key):
-                raise RuntimeError(
-                    f"{name} cannot be installed because this site is missing its "
-                    f"{key} package. Please report this at "
-                    "https://github.com/ColmTalbot/bilby-browser/issues"
-                )
+        await install_group(name)
         if name == "gwpy":
-            await _install_gwpy(wheel_urls["igwn_segments"])
-        else:
-            if extra.get("pyodide"):
-                await pyodide_js.loadPackage(extra["pyodide"])
-            if extra.get("pypi"):
-                await micropip.install(extra["pypi"])
-        _installed_extras.add(name)
+            _enable_sync_downloads()
         print(f"installed {name}")
-
-
-async def _install_gwpy(igwn_segments_url):
-    """Install gwpy (recipe from the LALSuite Pyodide work, see NOTES.md).
-
-    igwn-segments is our pure-Python build (scripts/build-igwn-segments.sh).
-    dqsegdb2 and gwdatafind need igwn-auth-utils, which needs gssapi
-    (Kerberos) and cannot exist on wasm, so these are installed without
-    dependencies; authenticated LIGO data access does not work. Pyodide's own
-    cryptography is used, and ssl and sqlite3 are not loaded by default.
-    """
-    import micropip
-
-    await pyodide_js.loadPackage(["astropy", "ssl", "sqlite3", "cryptography", "pyodide-http"])
-    await micropip.install([igwn_segments_url, "PyJWT"])
-    await micropip.install(
-        ["gwpy==4.0.2", "dqsegdb2", "gwdatafind", "igwn-auth-utils",
-         "safe-netrc", "scitokens"],
-        deps=False,
-    )
-    await micropip.install(
-        ["dateparser", "gwosc", "ligotimegps", "python-dateutil", "requests"]
-    )
-    _enable_sync_downloads()
-    import gwpy
-
-    return gwpy.__version__
 
 
 def _enable_sync_downloads():

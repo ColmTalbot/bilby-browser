@@ -4,8 +4,8 @@
 //   node scripts/test-examples.mjs core_examples/linear_regression.py ...
 //   node scripts/test-examples.mjs --full ...         # without bilby test mode
 //
-// Uses the same py/bootstrap.py as the browser worker. GW examples
-// (paths under gw_examples/) also install the LALSuite wheel from wheels/.
+// Uses the same py/bootstrap.py, wheels and package lock as the browser
+// worker; LALSuite and extras are installed when an example needs them.
 // Node has no XMLHttpRequest, so downloads through gwpy/astropy do not work
 // here (see _enable_sync_downloads in py/bootstrap.py).
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -29,35 +29,48 @@ pyodide.registerJsModule("_site", {
 pyodide.runPython(readFileSync(join(ROOT, "py/bootstrap.py"), "utf8"));
 const py = (name) => pyodide.globals.get(name);
 
-// copy a wheel from wheels/ into Pyodide's file system; returns its emfs: URL
-function stageWheel(prefix) {
-  const wheel = readdirSync(join(ROOT, "wheels")).filter((f) => f.startsWith(prefix) && f.endsWith(".whl")).sort().pop();
-  if (!wheel) {
-    const script = { "bilby-": "fetch-bilby.sh", "lalsuite-": "fetch-lalsuite.sh", "igwn_segments-": "build-igwn-segments.sh" }[prefix];
-    throw new Error(`no ${prefix}*.whl in wheels/; run scripts/${script} (or scripts/dev.sh for everything)`);
-  }
-  pyodide.FS.mkdirTree("/tmp/wheels");
-  pyodide.FS.writeFile(`/tmp/wheels/${wheel}`, readFileSync(join(ROOT, "wheels", wheel)));
-  return `emfs:/tmp/wheels/${wheel}`;
+// Install from the same files the site serves: copy wheels/ (local wheels,
+// the pinned PyPI wheels and the lock) into Pyodide's file system.
+const WHEELS = join(ROOT, "wheels");
+let index, lock;
+try {
+  index = JSON.parse(readFileSync(join(WHEELS, "index.json"), "utf8"));
+  lock = readFileSync(join(WHEELS, "packages.lock.json"), "utf8");
+} catch {
+  throw new Error("wheels/ is incomplete; run scripts/dev.sh (or the fetch/build scripts it runs)");
 }
+pyodide.FS.mkdirTree("/tmp/wheels/pypi");
+const urls = {};
+for (const [key, wheel] of Object.entries(index)) {
+  if (!wheel) continue;
+  pyodide.FS.writeFile(`/tmp/wheels/${wheel}`, readFileSync(join(WHEELS, wheel)));
+  urls[key] = `emfs:/tmp/wheels/${wheel}`;
+}
+for (const wheel of readdirSync(join(WHEELS, "pypi"))) {
+  pyodide.FS.writeFile(`/tmp/wheels/pypi/${wheel}`, readFileSync(join(WHEELS, "pypi", wheel)));
+}
+const pyUrls = pyodide.toPy(urls);
+py("set_lock")(lock, "emfs:/tmp/wheels/pypi/", pyUrls);
+pyUrls.destroy();
 
 console.log(`bilby test mode ${full ? "off" : "on"}`);
-console.log("bilby", await py("install_bilby")(stageWheel("bilby-")), "installed after", elapsed());
+console.log("bilby", await py("install_bilby")(), "installed after", elapsed());
 
-if (examples.some((p) => p.startsWith("gw_examples/"))) {
-  console.log("LAL", await py("install_lalsuite")(stageWheel("lalsuite-")), "installed after", elapsed());
-}
+// same rule as worker.js
+const needsLalsuite = (path, code) => path.startsWith("gw_examples/") || /\b(lal\w*|bilby\.gw)\b/.test(code);
+let lalsuite = false;
 
 let failed = 0;
 for (const path of examples) {
   console.log(`\n=== ${path}`);
   const dir = dirname(path);
-  const extras = py("extras_for")(readFileSync(join(ROOT, "examples", path), "utf8")).toJs();
-  if (extras.length) {
-    const urls = pyodide.toPy({ igwn_segments: extras.includes("gwpy") ? stageWheel("igwn_segments-") : null });
-    await py("install_extras")(extras, urls);
-    urls.destroy();
+  const code = readFileSync(join(ROOT, "examples", path), "utf8");
+  if (!lalsuite && needsLalsuite(path, code)) {
+    console.log("LAL", await py("install_lalsuite")(), "installed after", elapsed());
+    lalsuite = true;
   }
+  const extras = py("extras_for")(code).toJs();
+  if (extras.length) await py("install_extras")(extras);
   py("set_test_mode")(!full);
   const globals = pyodide.toPy(py("prepare")(path).toJs({ dict_converter: Object.fromEntries }));
   // copy the example's sibling data files (priors, text data, images)
@@ -70,7 +83,7 @@ for (const path of examples) {
   const since = py("now")();
   const start = performance.now();
   try {
-    await pyodide.runPythonAsync(readFileSync(join(ROOT, "examples", path), "utf8"), { globals });
+    await pyodide.runPythonAsync(code, { globals });
     py("show")();
     py("send_new_images")(since);
     console.log(`=== ${path}: ok in ${((performance.now() - start) / 1000).toFixed(1)} s`);

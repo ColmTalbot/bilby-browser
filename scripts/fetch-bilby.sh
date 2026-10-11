@@ -32,6 +32,8 @@ git -C "$CLONE" cat-file -e "$COMMIT^{commit}" 2>/dev/null \
 rm -rf examples
 git -C "$CLONE" archive --format=tar "$COMMIT" examples | tar -x --exclude='*.ipynb' -f -
 find examples -type d -empty -delete
+# the examples are bilby's (MIT); keep its licence next to them
+git -C "$CLONE" show "$COMMIT:LICENSE.md" > examples/LICENSE.md
 echo "$COMMIT" > examples/.commit
 python3 scripts/adapt_examples.py
 

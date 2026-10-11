@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "examples"
-SKIP = {"manifest.json", "adaptations.json", "README.md", "README.rst"}
+SKIP = {"manifest.json", "adaptations.json", "README.md", "README.rst", "LICENSE.md"}
 
 
 def describe(path):

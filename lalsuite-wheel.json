@@ -1,6 +1,21 @@
 {
  "url": "https://git.ligo.org/colm.talbot/lalsuite/-/jobs/5185942/artifacts/raw/wheelhouse-pyodide/lalsuite-7.26.16.1-cp313-cp313-pyodide_2025_0_wasm32.whl",
  "sha256": "f77819296ae929b46ead5891a11dc2c2cd06d746b6f3ec94cb44b0943d77ccf8",
+ "version": "7.26.16.1",
+ "license": "GPL-2.0-or-later",
+ "source_repo": "https://git.ligo.org/colm.talbot/lalsuite",
  "source_commit": "4554d05a18bab52b671281404278e5112ae89aa5",
- "source_repo": "https://git.ligo.org/colm.talbot/lalsuite"
+ "build_scripts": "wheel/pyodide",
+ "bundled": [
+  {"name": "GSL", "version": "2.8", "license": "GPL-3.0-or-later", "license_file": "GPL-3.0.txt",
+   "source": "https://ftp.gnu.org/gnu/gsl/gsl-2.8.tar.gz"},
+  {"name": "FFTW", "version": "3.3.10", "license": "GPL-2.0-or-later", "license_file": "GPL-2.0.txt",
+   "source": "https://www.fftw.org/fftw-3.3.10.tar.gz"},
+  {"name": "HDF5", "version": "1.12.1", "license": "BSD-3-Clause-style (HDF5 license)", "license_file": "HDF5-COPYING.txt",
+   "source": "https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5-1_12_1.tar.gz"},
+  {"name": "FrameL", "version": "8.50.3", "license": "LGPL-2.1-or-later", "license_file": "FrameL-LICENSE.txt",
+   "source": "https://git.ligo.org/virgo/virgoapp/Fr/-/archive/8.50.3/Fr-8.50.3.tar.gz"},
+  {"name": "zlib (in FrameL and Emscripten's port)", "version": "", "license": "Zlib", "license_file": "zlib.txt",
+   "source": "https://github.com/emscripten-core/emscripten/tree/main/tools/ports"}
+ ]
 }

@@ -1,0 +1,308 @@
+{
+ "pyodide_version": "0.29.5",
+ "generated_by": "scripts/lock-packages.mjs",
+ "groups": {
+  "bilby": {
+   "pyodide": [
+    "attrs",
+    "bilby-cython",
+    "contourpy",
+    "cycler",
+    "fonttools",
+    "h5py",
+    "kiwisolver",
+    "matplotlib",
+    "micropip",
+    "numpy",
+    "packaging",
+    "pandas",
+    "pillow",
+    "pkgconfig",
+    "pyparsing",
+    "python-dateutil",
+    "pytz",
+    "rich",
+    "scipy",
+    "six",
+    "tqdm",
+    "typing-extensions"
+   ],
+   "pypi": [
+    {
+     "name": "array-api-compat",
+     "version": "1.15.0",
+     "file": "array_api_compat-1.15.0-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/86/16/1a8fd2b19544b84575cf84ef7aa3ad4c173b756d5f087c91f85d1b295777/array_api_compat-1.15.0-py3-none-any.whl",
+     "sha256": "7b1b9c53269061403fd5f45a8de349f16e7887653328bfa0c5f2d45299ff0a8e",
+     "license": "MIT"
+    },
+    {
+     "name": "array-api-extra",
+     "version": "0.11.4",
+     "file": "array_api_extra-0.11.4-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/c7/b3/fcf70b2ed935f26fc15dfd81f72f781d395b09e302af5c86ec285d63524e/array_api_extra-0.11.4-py3-none-any.whl",
+     "sha256": "b2d5bd31b3072249fd3f90a2b1f7b398c78e3ccb7575e04e9e3348ae894da60f",
+     "license": "MIT"
+    },
+    {
+     "name": "beartype",
+     "version": "0.23.1",
+     "file": "beartype-0.23.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/1c/cb/2f6aa982e2860c1156830db3da7f823b71784ed7d533ca289ea9b6c6347a/beartype-0.23.1-py3-none-any.whl",
+     "sha256": "4461b4dc57e3fdd6c8a8464b22cf118002eea107c33e9fef651c69068ab3cce3",
+     "license": "MIT"
+    },
+    {
+     "name": "corner",
+     "version": "2.3.0",
+     "file": "corner-2.3.0-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/d6/cb/17a130e548ee1777f2a66e09240c531a9bf79454add7ef1198fe1e41c412/corner-2.3.0-py3-none-any.whl",
+     "sha256": "f93f0a4d77ff6852d6ddc80a6a99038117be64e3b5b49d96a82c9f5974cce126",
+     "license": "BSD 2-Clause License"
+    },
+    {
+     "name": "dill",
+     "version": "0.4.1",
+     "file": "dill-0.4.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/1e/77/dc8c558f7593132cf8fefec57c4f60c83b16941c574ac5f619abb3ae7933/dill-0.4.1-py3-none-any.whl",
+     "sha256": "1e1ce33e978ae97fcfcff5638477032b801c46c7c65cf717f95fbc2248f79a9d",
+     "license": "BSD-3-Clause"
+    },
+    {
+     "name": "dynesty",
+     "version": "3.1.0",
+     "file": "dynesty-3.1.0-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/f1/f9/41c72d0b5fb511fdf23cf62ed50da6c73d4497f03ed1cad04f214dc477c8/dynesty-3.1.0-py3-none-any.whl",
+     "sha256": "4e5b77bb261abdcb98e3a538d7498a94d5882a848f0ea46924b404396ef036d5",
+     "license": "MIT"
+    },
+    {
+     "name": "emcee",
+     "version": "3.1.6",
+     "file": "emcee-3.1.6-py2.py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/f9/ef/2196b9bf88ffa1bde45853c72df021fbd07a8fa91a0f59a22d14a050dc04/emcee-3.1.6-py2.py3-none-any.whl",
+     "sha256": "f2d63752023bdccf744461450e512a5b417ae7d28f18e12acd76a33de87580cb",
+     "license": "MIT"
+    },
+    {
+     "name": "nestle",
+     "version": "0.2.1",
+     "file": "nestle-0.2.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/a6/ed/7b866669511d5a62bed0cc585d403477a453d72c61335cc4fc73f907c220/nestle-0.2.1-py3-none-any.whl",
+     "sha256": "1189771288bbcbcea782147f05ba60e3edd5c4b6051ae580f9ff3ef753c6f930",
+     "license": "MIT"
+    },
+    {
+     "name": "nestle-bilby",
+     "version": "0.1.1",
+     "file": "nestle_bilby-0.1.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/84/4e/8e638792152a3c7283baa52d70c7a6206b91a6441ad7e3e1d64c961753b1/nestle_bilby-0.1.1-py3-none-any.whl",
+     "sha256": "0052240feecd9dba052fee162010fefb4a787e08a9012de529f98f6f5bd3f0bb",
+     "license": "MIT"
+    },
+    {
+     "name": "plum-dispatch",
+     "version": "2.10.1",
+     "file": "plum_dispatch-2.10.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/55/9f/0adfb5a90d65233b764cb1b07244b72ded1db7cfc66955418544d0da2e38/plum_dispatch-2.10.1-py3-none-any.whl",
+     "sha256": "dac63fd5ada8ae8045aefed127dacda0ba02db2635876b12f4e1dfaf6db73f39",
+     "license": "MIT"
+    }
+   ]
+  },
+  "lalsuite": {
+   "pyodide": [
+    "astropy",
+    "astropy-iers-data",
+    "pyerfa",
+    "pyyaml"
+   ],
+   "pypi": []
+  },
+  "gwpy": {
+   "pyodide": [
+    "astropy",
+    "astropy-iers-data",
+    "certifi",
+    "cffi",
+    "charset-normalizer",
+    "cryptography",
+    "idna",
+    "libopenssl",
+    "pycparser",
+    "pyerfa",
+    "pyodide-http",
+    "pyyaml",
+    "regex",
+    "requests",
+    "sqlite3",
+    "ssl",
+    "urllib3"
+   ],
+   "pypi": [
+    {
+     "name": "dateparser",
+     "version": "1.4.3",
+     "file": "dateparser-1.4.3-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/30/5f/63f927b5ffd1cc2c030fc2bd362bf920890e8806cf42f701198de5b3f9c7/dateparser-1.4.3-py3-none-any.whl",
+     "sha256": "cbce86c64e0cea5c54c84c015d34c903d46c51bfad50632bf2f05a6141d10c05",
+     "license": "BSD-3-Clause"
+    },
+    {
+     "name": "dqsegdb2",
+     "version": "1.3.1",
+     "file": "dqsegdb2-1.3.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/67/14/d4f021739ba0c852e68fbc71454d152fa4ccfda5bb932d2d9464e4ebee06/dqsegdb2-1.3.1-py3-none-any.whl",
+     "sha256": "9dfcf861815640ad80f445dc72d836f662f5401f50848d5735d4394ea95d67da",
+     "license": "GPL-3.0-or-later"
+    },
+    {
+     "name": "gwdatafind",
+     "version": "2.1.1",
+     "file": "gwdatafind-2.1.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/b9/00/07a1a9473ea5bbbc0be3cea79778dfd31e7e199404777907930badc9f399/gwdatafind-2.1.1-py3-none-any.whl",
+     "sha256": "6e6d430fa243e6241ca0c214f1916f7973cf1937716bbca52d99a9b88650faeb",
+     "license": "GPL-3.0-or-later"
+    },
+    {
+     "name": "gwosc",
+     "version": "0.8.3",
+     "file": "gwosc-0.8.3-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/8a/0f/e28c501107455a2d791b613dbc45eaa25eac694d1d75e78c829cd11928c7/gwosc-0.8.3-py3-none-any.whl",
+     "sha256": "96874d12ee3d071675896414cbce3e05994d10e738020406900fc0655081913e",
+     "license": "MIT"
+    },
+    {
+     "name": "gwpy",
+     "version": "4.0.2",
+     "file": "gwpy-4.0.2-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/a6/43/34270f2bc754e8da1b3e8acc125eb05daadb98d12f5bd7fb1f5d62f03b6a/gwpy-4.0.2-py3-none-any.whl",
+     "sha256": "e394587c00c40d3c168bf3d98e983611a2b638c4bc893bacfcfc1d71eef5f7c3",
+     "license": "GPL-3.0-or-later"
+    },
+    {
+     "name": "igwn-auth-utils",
+     "version": "1.4.0",
+     "file": "igwn_auth_utils-1.4.0-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/70/a0/6d3b9b7ff91c1cc73a0f45972a5032a4e89439ffb16e617806867cee905b/igwn_auth_utils-1.4.0-py3-none-any.whl",
+     "sha256": "3936dbc4e630b1a31eeb1376abf25ac7b518629f84e34ecc37a9d88ebd86e582",
+     "license": "BSD-3-Clause"
+    },
+    {
+     "name": "ligotimegps",
+     "version": "2.1.0",
+     "file": "ligotimegps-2.1.0-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/0e/92/38674acb59c663bcdb69522e11afd3b4e6371f74b5764aeec2e99308cd79/ligotimegps-2.1.0-py3-none-any.whl",
+     "sha256": "14dbbb07b175b94b4e1a519d7baa4548f0ea07bc71ef7d7f096ad8397d359043",
+     "license": "GPL-3.0-or-later"
+    },
+    {
+     "name": "pyjwt",
+     "version": "2.15.1",
+     "file": "pyjwt-2.15.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/50/ca/44de4e75f8aadc457f0634be3b542815078ded46dca30efb960edeecad6e/pyjwt-2.15.1-py3-none-any.whl",
+     "sha256": "42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193",
+     "license": "MIT"
+    },
+    {
+     "name": "safe-netrc",
+     "version": "1.0.1",
+     "file": "safe_netrc-1.0.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/26/2a/b5b09ff2781c7ea694b337f65f52a00319396578c049af8890ff9b4b8232/safe_netrc-1.0.1-py3-none-any.whl",
+     "sha256": "5f0dd6a5e304b1da3be220f15efedbf09e50779fe90462143c228c781b9d8218",
+     "license": "GPL-2.0-or-later"
+    },
+    {
+     "name": "scitokens",
+     "version": "1.9.7",
+     "file": "scitokens-1.9.7-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/93/5b/ed5d8ce3d0e9d2bd38c7901d8131a346fe69d941357f92700bceee12b32e/scitokens-1.9.7-py3-none-any.whl",
+     "sha256": "05a539ece3a114233e28c5b1552e5d1fbd13282c6ce683f5a073de116b228df0",
+     "license": "Apache-2.0"
+    },
+    {
+     "name": "tenacity",
+     "version": "9.2.1",
+     "file": "tenacity-9.2.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/d6/26/1ff2b0721ac66a3ec5b1402b333110b352ab0a8724052ac279a7b82d40c4/tenacity-9.2.1-py3-none-any.whl",
+     "sha256": "9e56f17539296baab7beabb08b92f6ee3d7be92d8be72d763360677c2ad6580e",
+     "license": "Apache-2.0"
+    },
+    {
+     "name": "tzlocal",
+     "version": "5.4.4",
+     "file": "tzlocal-5.4.4-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/9e/a4/017a7a6cbe387d961a688ec31364ae60a5c4e22c96ae9921b79a947c855d/tzlocal-5.4.4-py3-none-any.whl",
+     "sha256": "aae09f0126a8a86fa736be266eb4a471380d26a0de3bc14844e7821fee3e2a15",
+     "license": "MIT"
+    }
+   ]
+  },
+  "gwosc": {
+   "pyodide": [
+    "certifi",
+    "charset-normalizer",
+    "idna",
+    "requests",
+    "urllib3"
+   ],
+   "pypi": [
+    {
+     "name": "gwosc",
+     "version": "0.8.3",
+     "file": "gwosc-0.8.3-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/8a/0f/e28c501107455a2d791b613dbc45eaa25eac694d1d75e78c829cd11928c7/gwosc-0.8.3-py3-none-any.whl",
+     "sha256": "96874d12ee3d071675896414cbce3e05994d10e738020406900fc0655081913e",
+     "license": "MIT"
+    },
+    {
+     "name": "tenacity",
+     "version": "9.2.1",
+     "file": "tenacity-9.2.1-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/d6/26/1ff2b0721ac66a3ec5b1402b333110b352ab0a8724052ac279a7b82d40c4/tenacity-9.2.1-py3-none-any.whl",
+     "sha256": "9e56f17539296baab7beabb08b92f6ee3d7be92d8be72d763360677c2ad6580e",
+     "license": "Apache-2.0"
+    }
+   ]
+  },
+  "gwinc": {
+   "pyodide": [
+    "asttokens",
+    "decorator",
+    "executing",
+    "ipython",
+    "matplotlib-inline",
+    "prompt-toolkit",
+    "pure-eval",
+    "pygments",
+    "pyyaml",
+    "sqlite3",
+    "stack-data",
+    "traitlets",
+    "wcwidth"
+   ],
+   "pypi": [
+    {
+     "name": "gwinc",
+     "version": "0.6.2",
+     "file": "gwinc-0.6.2-py3-none-any.whl",
+     "url": "https://files.pythonhosted.org/packages/1f/2a/cc9946bf406d4fa6a0b38d1531eca30ed93772131a4d263214e900ec4d8e/gwinc-0.6.2-py3-none-any.whl",
+     "sha256": "9250265e8a7bde0ab31b0d8fc14b1fcbaecbcd8e6b6ea6a2400871efdeaad528",
+     "license": "UNLICENSE"
+    }
+   ]
+  },
+  "skimage": {
+   "pyodide": [
+    "decorator",
+    "imageio",
+    "lazy-loader",
+    "networkx",
+    "pywavelets",
+    "scikit-image",
+    "setuptools"
+   ],
+   "pypi": []
+  }
+ }
+}

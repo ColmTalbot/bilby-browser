@@ -44,6 +44,10 @@ UNSUPPORTED = {
         "needs GraceDB credentials and data only available on LIGO clusters",
     "gw_examples/data_examples/read_gracedb_data.py":
         "needs GraceDB credentials and data only available on LIGO clusters",
+    "gw_examples/data_examples/GW150914.py":
+        "loading real GWOSC data in the browser is not supported yet",
+    "gw_examples/data_examples/GW190425.py":
+        "loading real GWOSC data in the browser is not supported yet",
     "gw_examples/injection_examples/roq_example.py":
         "needs ROQ basis files that are not available here yet",
 }
