@@ -89,6 +89,9 @@ These notes were written from the LALSuite Pyodide work (branch
   request, so prefer short events or cache them.
 - **No multiprocessing or threads** in Pyodide: samplers run on one core.
   `npool` and similar options must stay at 1.
+  gwpy 4's `fetch_open_data` always uses a `ThreadPoolExecutor` (even for
+  one detector); `py/bootstrap.py` replaces `concurrent.futures.ThreadPoolExecutor`
+  with an executor that runs each task as it is submitted.
 - **Run Python in a Web Worker** for anything long (sampling), so the
   page stays responsive; the LALSuite test page runs on the main thread.
 - No authenticated LIGO data access (Kerberos/SciTokens).

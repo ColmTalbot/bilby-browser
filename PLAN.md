@@ -115,7 +115,9 @@ In rough priority order.
 1. **Real data, redesigned.** Paused. GW150914 and GW190425 are flagged
    unsupported. Findings so far: gwpy's `fetch_open_data` needs downloads
    through astropy (sync XHR in the worker works for that) and runs every
-   download in a `ThreadPoolExecutor`, which Pyodide cannot start; GWOSC
+   download in a `ThreadPoolExecutor`, which Pyodide cannot start (now
+   replaced by an executor that runs tasks in place, see `py/bootstrap.py`;
+   downloads now work in the browser, slowly); GWOSC
    files are ~130 MB each, so caching (IndexedDB) or cropped copies served
    by the site are needed.
 2. **Test-mode-incompatible examples.** Six examples fail only in test

@@ -153,6 +153,14 @@ async def install_bilby():
     import tqdm
 
     tqdm.tqdm.monitor_interval = 0
+
+    # Pyodide cannot start threads either, and gwpy 4 always uses a
+    # ThreadPoolExecutor in fetch_open_data (even for one detector). Running
+    # each task in place instead must happen before gwpy is imported, because
+    # gwpy imports the class by name.
+    import concurrent.futures
+
+    concurrent.futures.ThreadPoolExecutor = _SerialExecutor
     import bilby
     from bilby.core.sampler.base_sampler import Sampler
 
@@ -169,6 +177,36 @@ async def install_bilby():
 
     Sampler._run_test = _run_normally
     return bilby.__version__
+
+
+class _SerialExecutor:
+    """Stand-in for concurrent.futures.ThreadPoolExecutor that runs each task
+    when it is submitted and returns a future that is already done."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def submit(self, fn, /, *args, **kwargs):
+        import concurrent.futures
+
+        future = concurrent.futures.Future()
+        try:
+            future.set_result(fn(*args, **kwargs))
+        except Exception as exc:
+            future.set_exception(exc)
+        return future
+
+    def map(self, fn, *iterables, timeout=None, chunksize=1):
+        return map(fn, *iterables)
+
+    def shutdown(self, wait=True, *, cancel_futures=False):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
 
 
 def set_test_mode(enabled):
