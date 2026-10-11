@@ -28,6 +28,7 @@ pyodide.registerJsModule("_site", {
 });
 pyodide.runPython(readFileSync(join(ROOT, "py/bootstrap.py"), "utf8"));
 const py = (name) => pyodide.globals.get(name);
+py("add_module")("gwosc_range", readFileSync(join(ROOT, "py/gwosc_range.py"), "utf8"));
 
 // Install from the same files the site serves: copy wheels/ (local wheels,
 // the pinned PyPI wheels and the lock) into Pyodide's file system.

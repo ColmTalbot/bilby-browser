@@ -112,14 +112,23 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
 
 In rough priority order.
 
-1. **Real data, redesigned.** Paused. GW150914 and GW190425 are flagged
-   unsupported. Findings so far: gwpy's `fetch_open_data` needs downloads
-   through astropy (sync XHR in the worker works for that) and runs every
-   download in a `ThreadPoolExecutor`, which Pyodide cannot start (now
-   replaced by an executor that runs tasks in place, see `py/bootstrap.py`;
-   downloads now work in the browser, slowly); GWOSC
-   files are ~130 MB each, so caching (IndexedDB) or cropped copies served
-   by the site are needed.
+1. **Real data.** GW150914 and GW190425 are still flagged unsupported.
+   - Done: `fetch_open_data` works in the browser. gwpy's thread pool runs
+     tasks in place, and HDF5 strain is read with HTTP range requests from
+     GWOSC (`py/gwosc_range.py`, design in `DATA-PLAN.md`). Only the
+     requested span is downloaded (128 s of H1 is 3.7 MB in about 5 s),
+     with parallel requests where the browser supports JSPI, and it is
+     cached for the session.
+   - Blocker: 32-bit (wasm32) numpy. scipy 1.14's Welch/CSD helper makes a
+     `sliding_window_view` at every sample. For 128 s at 4 kHz with 4 s
+     segments that is (507905, 16384) float64, nominally 67 GB. 64-bit
+     numpy allows it, since the view shares memory with the input, but
+     32-bit numpy refuses anything over 2^31 bytes ("array is too big"), so
+     every PSD of more than a few seconds fails. Patching `_fft_helper` to
+     a strided view of only the used segments fixes this case (checked,
+     bit-identical). But this is probably one instance of a wider 32-bit
+     problem (nominal sizes over 2 GB) and needs a look more broadly first.
+   - Later: a cache that survives reloads; StateVector reads.
 2. **Test-mode-incompatible examples.** Six examples fail only in test
    mode (`tests/known-failures.json`); flag them in the page, or run them
    with test mode off automatically.

@@ -264,6 +264,21 @@ def _enable_sync_downloads():
     pyodide_http.patch_all()
     astropy.utils.data._download_file_from_source = _xhr_download
 
+    # Whole GWOSC files are ~130 MB; read only the requested span of HDF5
+    # strain files with range requests (py/gwosc_range.py). Whole-file
+    # downloads above remain the fallback.
+    import gwosc_range
+
+    gwosc_range.install(gwosc_range.XhrFetcher())
+
+
+def add_module(name, source):
+    """Make the Python module `source` importable as `name`."""
+    import site
+
+    with open(os.path.join(site.getsitepackages()[0], name + ".py"), "w") as f:
+        f.write(source)
+
 
 def _xhr_download(source_url, *args, **kwargs):
     """Replacement for astropy.utils.data._download_file_from_source: download

@@ -78,15 +78,27 @@ These notes were written from the LALSuite Pyodide work (branch
 
 ## Known limitations
 
-- **No `TimeSeries.fetch_open_data`.** gwosc finds file URLs with
-  `requests` (works in Pyodide), but gwpy downloads through astropy, which
-  uses `urllib.request` and raw sockets (`URLError: [Errno 23] Host is
-  unreachable`). Same in gwpy 3 and 4. Workaround: `gwosc.locate.get_urls`,
-  download with `pyfetch`, write to the in-memory filesystem, then
-  `TimeSeries.read(path, format="hdf5.gwosc", start=..., end=...)`.
-  GWOSC sends `access-control-allow-origin: *` on the API and the data
-  files. Files are 4096 s long (~130 MB at 4 kHz) even for a short
-  request, so prefer short events or cache them.
+- **`TimeSeries.fetch_open_data` needs patching.** gwosc finds file URLs
+  with `requests` (works in Pyodide via `pyodide_http`), but gwpy
+  downloads through astropy, which uses `urllib.request` and raw sockets
+  (`URLError: [Errno 23] Host is unreachable`). Files are 4096 s long
+  (~130 MB at 4 kHz) even for a short request, and GWOSC serves about
+  350 kB/s per connection. `py/gwosc_range.py` reads HDF5 strain with HTTP
+  range requests instead: GWOSC answers `Range` with `206` and sends
+  `access-control-allow-origin: *`. `Content-Range` is not readable
+  cross-origin, but `Content-Length` from HEAD is. Opening a file costs
+  2 requests (0.5 MB); strain is gzip-compressed in 2 s chunks stored
+  nearly contiguously. gwpy's `read_gwosc_hdf5` reads the whole dataset
+  and then crops, so the slice is read separately. Synchronous XHR
+  downloads whole files as the fallback.
+- **32-bit numpy.** Pyodide is wasm32. `float64` is unchanged (IEEE
+  double), but pointers, `sys.maxsize`, `np.intp`, C `long` and numpy's
+  default integer are 32-bit: `np.array([2**30]) * 4` is `[0]`, silently.
+  Python `int` is still arbitrary precision, and `int64` works when asked
+  for. numpy refuses arrays whose nominal size exceeds 2^31 bytes, even
+  zero-copy views. scipy's Welch/CSD
+  (`sliding_window_view` in `_fft_helper`) hits this for PSDs of more than
+  a few seconds of 4 kHz data.
 - **No multiprocessing or threads** in Pyodide: samplers run on one core.
   `npool` and similar options must stay at 1.
   gwpy 4's `fetch_open_data` always uses a `ThreadPoolExecutor` (even for

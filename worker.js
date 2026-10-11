@@ -132,6 +132,7 @@ async function init() {
     pyodide.setStderr(stream("stderr"));
     pyodide.registerJsModule("_site", { image: (name, b64) => post("image", { name, b64 }) });
     pyodide.runPython(await fetchText("py/bootstrap.py", "Python setup code"));
+    py("add_module")("gwosc_range", await fetchText("py/gwosc_range.py", "Python setup code"));
     const urls = {};
     for (const [key, wheel] of Object.entries(index)) {
       if (wheel) urls[key] = siteUrl("wheels/" + wheel);

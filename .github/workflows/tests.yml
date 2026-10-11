@@ -54,6 +54,11 @@ jobs:
           mkdir _site
           cp -r index.html licenses.html app.js editor.bundle.js editor.bundle.LICENSE.txt worker.js py wheels examples licenses _site/
 
+      - name: Test GWOSC range reads in CPython
+        run: |
+          pip install gwpy==4.0.2
+          python -m unittest tests/test_gwosc_range.py
+
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
 

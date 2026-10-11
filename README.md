@@ -51,6 +51,7 @@ npx playwright install chromium   # once
 scripts/dev.sh                    # once, to generate examples/ and wheels/
 npm test                          # every supported example in Node (test mode)
 npm run test:browser              # Playwright smoke test of the page
+python -m unittest tests/test_gwosc_range.py   # GWOSC range reads (needs gwpy==4.0.2)
 ```
 
 Expected failures are listed with reasons in `tests/known-failures.json`.
