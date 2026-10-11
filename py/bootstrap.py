@@ -63,6 +63,11 @@ async def install_bilby(wheel_url):
     import bilby
     from bilby.core.sampler.base_sampler import Sampler
 
+    # Always run cleanly (the --clean flag): output stays in the in-memory
+    # file system between runs, and without this a rerun would resume from
+    # the previous checkpoint or reuse the cached result instead of sampling.
+    bilby.core.utils.command_line_args.clean = True
+
     # In test mode bilby calls sampler._run_test() instead of run_sampler().
     # Only some samplers (dynesty, nestle) implement it; the base class
     # raises, so the others (emcee, bilby_mcmc, ...) run normally instead.
