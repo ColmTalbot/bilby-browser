@@ -10,6 +10,7 @@ const output = $("output");
 const SCRATCH = "scratch.py"; // the blank editor, at #scratch
 const editor = BilbyEditor.createEditor($("code"), {
   onRun: () => run(),
+  describedBy: "editor-help",
   onChange: (text) => { if (current?.path === SCRATCH) store("bilby-scratch", text); },
   placeholderText: "# A blank editor: bilby, its samplers and LALSuite are available.\n# Ctrl/⌘+Enter to run.",
 });
@@ -23,6 +24,13 @@ function stored(key) {
 }
 function store(key, value) {
   try { localStorage.setItem(key, value); } catch {}
+}
+
+// Tell screen-reader users what happened (run started, finished, failed...).
+function announce(text) {
+  const region = $("announce");
+  region.textContent = "";
+  setTimeout(() => { region.textContent = text; }, 50);
 }
 
 function setStatus(text, cls = "") {
@@ -170,7 +178,7 @@ function showImage(name, b64) {
     caption.textContent = name;
     const download = document.createElement("a");
     download.href = img.src;
-    download.download = name.split("/").pop();
+    download.download = fileName(name);
     download.textContent = "download";
     caption.appendChild(download);
     figure.append(img, caption);
@@ -218,6 +226,13 @@ function formatSize(bytes) {
   return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
 }
 
+// what a figure is saved as: its file name, or "figure 1.png" for figures
+// that were only shown (plt.show), never saved
+const fileName = (name) => {
+  const base = name.split("/").pop();
+  return /\.\w+$/.test(base) ? base : base + ".png";
+};
+
 // a figure enlarged over the page, with a download link
 function openFigure(src, name) {
   const box = $("lightbox");
@@ -225,7 +240,7 @@ function openFigure(src, name) {
   box.querySelector("img").alt = name;
   const download = box.querySelector("a");
   download.href = src;
-  download.download = name.split("/").pop();
+  download.download = fileName(name);
   box.showModal();
 }
 $("lightbox").addEventListener("click", (e) => { if (e.target.tagName !== "A") $("lightbox").close(); });
@@ -241,6 +256,7 @@ function startWorker() {
     switch (data.type) {
       case "status":
         setStatus(data.text);
+        if (!running) announce(data.text);
         break;
       case "progress":
         showProgress(data);
@@ -248,6 +264,7 @@ function startWorker() {
       case "ready":
         worker.ready = true;
         setStatus("Ready: " + data.text, "ok");
+        announce("Ready to run");
         setRunning(running);
         break;
       case "info":
@@ -264,12 +281,14 @@ function startWorker() {
         break;
       case "done":
         append(`finished in ${data.seconds.toFixed(1)} s`, "info");
+        announce(`Finished in ${data.seconds.toFixed(1)} seconds` + (block.querySelector("img") ? ", with figures" : ""));
         setStatus("Ready", "ok");
         setRunning(false);
         break;
       case "error":
         append(data.text, "error");
         markTracebackLine(data.text);
+        announce((data.fatal ? "Python failed to start: " : "The run failed: ") + data.text.trim().split("\n").pop());
         setStatus(data.fatal ? "Failed to start Python" : "Ready (last run failed)", data.fatal ? "err" : "");
         setRunning(false);
         break;
@@ -282,6 +301,7 @@ function startWorker() {
 function showProgress({ done, label, received, expected }) {
   const bar = $("progress");
   bar.classList.toggle("active", !done);
+  bar.setAttribute("aria-hidden", String(Boolean(done)));
   if (done) return;
   bar.classList.toggle("unknown", !expected);
   const fraction = expected ? Math.min(1, received / expected) : 0;
@@ -310,6 +330,7 @@ function run() {
   setStatus("Running " + current.path + "…");
   const testMode = $("test-mode").checked;
   startRun(">>> " + current.path + (testMode ? " (test mode)" : ""), testMode ? "run test" : "run");
+  announce(`Running ${current.path.split("/").pop()}` + (testMode ? " in test mode" : ""));
   editor.markErrorLine(null);
   worker.postMessage({ type: "run", path: current.path, code: editor.getValue(), files: current.files, testMode });
 }
@@ -318,6 +339,7 @@ function stop() {
   if (!running) return;
   worker.terminate();
   append("stopped; restarting Python", "error");
+  announce("Stopped; restarting Python");
   block = output;
   running = false;
   startWorker();
@@ -350,6 +372,10 @@ function buildTree(node, parent, depth = 0) {
     link.dataset.info = JSON.stringify({ changes: example.changes || [], support: example.support || null });
     if (example.support) {
       link.classList.add(example.support.status);
+      const note = document.createElement("span");
+      note.className = "sr-only";
+      note.textContent = example.support.status === "unsupported" ? " (not supported in the browser)" : " (partly supported)";
+      link.appendChild(note);
       link.title += `\n\n${example.support.status}: ${example.support.reason}`;
     }
     parent.appendChild(link);
@@ -517,11 +543,19 @@ const showTree = () => {
   $("toggle-tree").setAttribute("aria-expanded", String(visible));
   $("toggle-tree").title = visible ? "Hide the example list" : "Show the example list";
 };
+// while the drawer is open the page behind it cannot be reached; closing it
+// returns focus to the button that opened it
 function setDrawer(open) {
+  const wasOpen = document.body.classList.contains("tree-open");
   document.body.classList.toggle("tree-open", open);
+  for (const el of [document.querySelector("header"), $("editor-pane"), $("output-pane")]) el.inert = open;
   showTree();
   if (open) $("search").focus({ preventScroll: true });
+  else if (wasOpen && (!document.activeElement || $("tree").contains(document.activeElement) || document.activeElement === document.body)) {
+    $("toggle-tree").focus({ preventScroll: true });
+  }
 }
+$("close-tree").addEventListener("click", () => setDrawer(false));
 document.body.classList.toggle("tree-hidden", stored("bilby-tree-hidden") === "1");
 showTree();
 $("toggle-tree").addEventListener("click", () => {
@@ -574,8 +608,7 @@ const placeLinks = () => {
   const links = document.querySelector(".links");
   if (phone.matches) $("tree").appendChild(links);
   else document.querySelector("header").appendChild(links);
-  document.body.classList.remove("tree-open");
-  showTree();
+  setDrawer(false);
 };
 placeLinks();
 phone.addEventListener("change", placeLinks);
@@ -627,6 +660,7 @@ function flash(button, text) {
 // drag the divider to share the width between editor and output; remembered
 function setSplit(fraction) {
   const main = document.querySelector("main");
+  $("divider").setAttribute("aria-valuenow", Math.round((fraction ?? 0.5) * 100));
   if (fraction == null) {
     main.style.removeProperty("--left");
     main.style.removeProperty("--right");
@@ -659,6 +693,20 @@ $("divider").addEventListener("pointerdown", (e) => {
   divider.addEventListener("pointerup", up, { once: true });
 });
 $("divider").addEventListener("dblclick", () => { setSplit(null); store("bilby-split", ""); });
+// from the keyboard: arrow keys move it by 5%, Home resets it
+$("divider").addEventListener("keydown", (e) => {
+  const now = Number($("divider").getAttribute("aria-valuenow")) / 100;
+  let fraction;
+  if (e.key === "ArrowLeft" || e.key === "ArrowDown") fraction = now - 0.05;
+  else if (e.key === "ArrowRight" || e.key === "ArrowUp") fraction = now + 0.05;
+  else if (e.key === "Home") { setSplit(null); store("bilby-split", ""); e.preventDefault(); return; }
+  else return;
+  e.preventDefault();
+  fraction = Math.min(0.8, Math.max(0.2, fraction));
+  setSplit(fraction);
+  store("bilby-split", String(fraction));
+});
+$("skip").addEventListener("click", (e) => { e.preventDefault(); editor.focus(); });
 
 // colour theme: follow the system (auto), or force light or dark
 const THEMES = ["auto", "light", "dark"];

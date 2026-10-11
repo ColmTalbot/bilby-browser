@@ -53,7 +53,7 @@ const errorLine = StateField.define({
   provide: (field) => EditorView.decorations.from(field),
 });
 
-export function createEditor(parent, { onRun, onChange, label = "Python code", placeholderText = "" } = {}) {
+export function createEditor(parent, { onRun, onChange, label = "Python code", describedBy, placeholderText = "" } = {}) {
   const extensions = [
     Prec.highest(keymap.of([{ key: "Mod-Enter", preventDefault: true, run: () => { onRun?.(); return true; } }])),
     basicSetup,
@@ -64,7 +64,9 @@ export function createEditor(parent, { onRun, onChange, label = "Python code", p
     syntaxHighlighting(highlightStyle),
     theme,
     errorLine,
-    EditorView.contentAttributes.of({ "aria-label": label, spellcheck: "false" }),
+    EditorView.contentAttributes.of({
+      "aria-label": label, spellcheck: "false", ...(describedBy ? { "aria-describedby": describedBy } : {}),
+    }),
     placeholder(placeholderText),
     EditorView.updateListener.of((update) => { if (update.docChanged) onChange?.(update.state.doc.toString()); }),
   ];

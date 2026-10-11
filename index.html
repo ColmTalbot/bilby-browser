@@ -11,7 +11,7 @@
     --bg: #ffffff; --fg: #1d1d1f; --muted: #6b6b70; --panel: #f5f5f7;
     --border: #d8d8dc; --accent: #2457c5; --ok: #1d7f3a; --err: #b3261e;
     --code-bg: #fbfbfc; --warn: #8a5a00; --warn-bg: #fff4d6; --warn-border: #e0a800;
-    --syn-keyword: #8b2fc9; --syn-string: #1a7f37; --syn-number: #b35900; --syn-comment: #6e7781;
+    --syn-keyword: #8b2fc9; --syn-string: #1a7f37; --syn-number: #b35900; --syn-comment: #5f6872;
     --syn-def: #0550ae; --syn-call: #24292f; --syn-builtin: #953800;
     --active-line: rgba(36, 87, 197, 0.06); --selection: rgba(36, 87, 197, 0.22);
     --error-line: rgba(179, 38, 30, 0.14);
@@ -43,6 +43,14 @@
     --error-line: rgba(255, 123, 114, 0.18);
   }
   * { box-sizing: border-box; }
+  /* for screen readers only */
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+             clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  #skip { position: absolute; z-index: 50; left: 12px; top: -40px; padding: 6px 10px; border-radius: 6px;
+          background: var(--accent); color: #fff; font-size: 13px; }
+  #skip:focus { top: 8px; }
+  #close-tree { display: none; }
+  #output:focus-visible, #divider:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   body { margin: 0; background: var(--bg); color: var(--fg);
          height: 100vh; display: flex; flex-direction: column; }
   header { padding: 12px 16px; border-bottom: 1px solid var(--border);
@@ -134,7 +142,7 @@
                  font-weight: 600; }
   nav a.unsupported { color: var(--muted); text-decoration: line-through;
                       text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
-  nav a.partial::after { content: " ◐"; color: var(--muted); }
+  nav a.partial::after { content: " ◐"; content: " ◐" / ""; color: var(--muted); }
   /* open and close smoothly where supported (Chromium); instant elsewhere */
   @supports selector(::details-content) {
     :root { interpolate-size: allow-keywords; }
@@ -244,7 +252,8 @@
   #lightbox::backdrop { background: rgba(0, 0, 0, 0.75); }
   #lightbox img { display: block; max-width: 96vw; max-height: 88vh; background: #fff;
                   border-radius: 6px; cursor: zoom-out; }
-  #lightbox .bar { display: flex; gap: 12px; justify-content: center; padding-top: 8px; }
+  #lightbox .bar { display: flex; gap: 12px; justify-content: center; align-items: center; width: max-content;
+                   margin: 8px auto 0; padding: 4px 6px 4px 14px; border-radius: 8px; background: #1d1d1f; }
   #lightbox .bar a, #lightbox .bar button { color: #fff; font-size: 13px; }
   #lightbox .bar button { background: transparent; border-color: rgba(255, 255, 255, 0.4); }
   /* phones: the example list is a drawer over the page (opened with the
@@ -260,6 +269,7 @@
           box-shadow: 0 0 24px rgba(0, 0, 0, 0.25); transform: translateX(-105%);
           transition: transform 0.2s ease; visibility: hidden; }
     body.tree-open nav { transform: none; visibility: visible; }
+    #close-tree { display: block; align-self: flex-end; }
     body.tree-open #scrim { display: block; position: fixed; inset: 0; z-index: 29;
                             background: rgba(0, 0, 0, 0.35); }
     #search { font-size: 16px; } /* smaller text makes iOS zoom in on focus */
@@ -281,6 +291,7 @@
 </head>
 <body>
 <header>
+  <a id="skip" href="#">Skip to the editor</a>
   <button id="toggle-tree" class="icon-button" aria-controls="tree" aria-expanded="true" title="Hide the example list">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
       <rect class="fill" x="3.5" y="4.5" width="4.25" height="11" rx="1.75"/>
@@ -312,14 +323,15 @@
     <a href="licenses.html">Licences</a>
     <button id="theme" title="Colour theme">Theme: auto</button>
   </span>
-  <div id="progress" role="progressbar" aria-label="Download progress"><div class="fill"></div></div>
+  <div id="progress" role="progressbar" aria-label="Download progress" aria-hidden="true"><div class="fill"></div></div>
 </header>
 <main>
   <nav id="tree" aria-label="Examples">
+    <button id="close-tree">Close</button>
     <input id="search" type="search" placeholder="Search examples" aria-label="Search examples" autocomplete="off">
     <div id="no-match" class="hidden">No matching examples</div>
   </nav>
-  <section class="pane" id="editor-pane">
+  <section class="pane" id="editor-pane" aria-label="Editor">
     <div class="toolbar">
       <span id="title"></span>
       <span class="spacer"></span>
@@ -332,9 +344,12 @@
     <div id="description"></div>
     <div id="notes"></div>
     <div id="code"></div>
+    <p id="editor-help" class="sr-only">Python code editor. Tab indents; to leave the editor press Escape, then Tab. Control or Command plus Enter runs the code.</p>
   </section>
-  <section class="pane" id="output-pane">
-    <div id="divider" role="separator" aria-orientation="vertical" aria-label="Resize editor and output" title="Drag to resize; double-click to reset"></div>
+  <section class="pane" id="output-pane" aria-label="Output">
+    <div id="divider" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="editor-pane output-pane"
+         aria-valuemin="20" aria-valuemax="80" aria-valuenow="50" aria-label="Width of the editor"
+         title="Drag (or use the arrow keys) to resize; double-click or Home to reset"></div>
     <div class="toolbar">
       <span class="hint">Output<span class="long"> (runs in your browser with Pyodide; one CPU core)</span></span>
       <span class="spacer"></span>
@@ -342,7 +357,10 @@
       <button id="copy" title="Copy all output as text">Copy</button>
       <button id="clear">Clear</button>
     </div>
-    <div id="output" aria-live="polite"></div>
+    <div id="output" tabindex="0" aria-label="Program output"></div>
+    <!-- run started, finished or failed, for screen readers; the output itself
+         is not a live region, since every line of it would be read out -->
+    <div id="announce" class="sr-only" role="status" aria-live="polite"></div>
   </section>
 </main>
 <div id="scrim"></div>
