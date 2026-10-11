@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bilby in the browser</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d1d1f; --muted: #6b6b70; --panel: #f5f5f7;
+    --border: #d8d8dc; --accent: #2457c5; --ok: #1d7f3a; --err: #b3261e;
+    --code-bg: #fbfbfc;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --panel: #202024;
+      --border: #34343a; --accent: #7aa2ff; --ok: #5cc27a; --err: #ff7b72;
+      --code-bg: #1b1b1e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--border);
+           display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  #status { font-size: 13px; color: var(--muted); }
+  #source { margin-left: auto; color: var(--muted); }
+  #status.ok { color: var(--ok); } #status.err { color: var(--err); }
+  main { display: grid; grid-template-columns: 260px minmax(0, 1fr) minmax(0, 1fr);
+         gap: 16px; padding: 12px 16px; height: calc(100vh - 50px); }
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 220px minmax(0, 1fr); height: auto; }
+    #output-pane { grid-column: 1 / -1; }
+  }
+  @media (max-width: 700px) { main { grid-template-columns: 1fr; } }
+
+  nav { overflow: auto; font-size: 13px; border-right: 1px solid var(--border);
+        padding-right: 8px; }
+  nav summary { cursor: pointer; padding: 3px 0; font-weight: 600; }
+  nav .children { padding-left: 12px; border-left: 1px solid var(--border);
+                  margin-left: 4px; }
+  nav a { display: block; padding: 3px 6px; color: var(--fg); text-decoration: none;
+          border-radius: 4px; overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 12px; }
+  nav a:hover { background: var(--panel); }
+  nav a.active { background: var(--accent); color: #fff; }
+  nav a.unsupported { color: var(--muted); text-decoration: line-through; }
+  nav a.partial::after { content: " ◐"; color: var(--muted); }
+  nav a.active.unsupported, nav a.active.partial::after { color: #fff; }
+  #notes p { margin: 0; font-size: 12px; padding: 6px 10px; border-radius: 6px;
+             background: var(--panel); }
+  #notes p + p { margin-top: 4px; }
+  #notes .unsupported { color: var(--err); }
+  #notes .partial { color: var(--fg); }
+  #notes .changes { color: var(--muted); }
+  .toggle { font-size: 13px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+  .pane { display: flex; flex-direction: column; min-height: 0; gap: 8px; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .toolbar .spacer { flex: 1; }
+  #title { font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #description { font-size: 12px; color: var(--muted); margin: 0; }
+  button { font: inherit; font-size: 13px; padding: 6px 10px;
+           border: 1px solid var(--border); border-radius: 6px;
+           background: var(--panel); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent);
+                   color: #fff; font-weight: 600; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .hint { font-size: 12px; color: var(--muted); }
+  textarea { flex: 1; min-height: 320px; width: 100%; resize: none;
+             font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+             padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+             background: var(--code-bg); color: var(--fg); tab-size: 4; }
+  #output { flex: 1; min-height: 320px; overflow: auto; padding: 12px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--panel);
+            font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #output pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  #output .stderr { color: var(--muted); }
+  #output .error { color: var(--err); }
+  #output .info { color: var(--muted); font-style: italic; }
+  #output .run { color: var(--accent); margin-top: 10px; font-weight: 600; }
+  #output figure { margin: 8px 0; }
+  #output img { max-width: 100%; background: #fff; border-radius: 6px; }
+  #output figcaption { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>bilby in the browser</h1>
+  <span id="status">Loading…</span>
+  <a id="source" class="hint"></a>
+</header>
+<main>
+  <nav id="tree" aria-label="Examples"></nav>
+  <section class="pane">
+    <div class="toolbar">
+      <span id="title"></span>
+      <span class="spacer"></span>
+      <label class="toggle" title="bilby test mode (--bilby-test-mode): samplers that support it (dynesty, nestle) run only a couple of iterations, and corner and data plots are skipped">
+        <input type="checkbox" id="test-mode" checked> Test mode
+      </label>
+      <span class="hint">Ctrl/⌘+Enter to run</span>
+      <button id="reset" title="Discard your edits">Reset</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="run" class="primary" disabled>Run</button>
+    </div>
+    <p id="description"></p>
+    <div id="notes"></div>
+    <textarea id="code" spellcheck="false" aria-label="Python code"></textarea>
+  </section>
+  <section class="pane" id="output-pane">
+    <div class="toolbar">
+      <span class="hint">Output (runs in your browser with Pyodide; one CPU core)</span>
+      <span class="spacer"></span>
+      <button id="clear">Clear</button>
+    </div>
+    <div id="output" aria-live="polite"></div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

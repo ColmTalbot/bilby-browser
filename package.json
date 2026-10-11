@@ -1,0 +1,11 @@
+{
+  "name": "bilby-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/test-examples.mjs"
+  },
+  "devDependencies": {
+    "pyodide": "0.29.5"
+  }
+}
