@@ -418,9 +418,11 @@ async function main() {
   await select(decodeURIComponent(location.hash.slice(1)) || "core_examples/linear_regression.py");
 }
 
-// bilby test mode: on by default while developing; remembered per browser
+// bilby test mode: on by default when served locally (development), off on
+// the live site; a choice made with the switch is remembered per browser
 const savedTestMode = stored("bilby-test-mode");
-if (savedTestMode !== null) $("test-mode").checked = savedTestMode === "1";
+const local = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+$("test-mode").checked = savedTestMode === null ? local : savedTestMode === "1";
 const showTestMode = () => {
   const on = $("test-mode").checked;
   document.body.classList.toggle("test-mode", on);

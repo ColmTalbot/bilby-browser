@@ -6,14 +6,25 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
 
 ## How it works now
 
-- **Page** (`index.html`, `app.js`): nested example tree that mirrors bilby's
-  `examples/`, a CodeMirror 6 editor (`editor/editor.js`, bundled into
-  `editor.bundle.js` by `npm run build:editor`; Python highlighting, line
-  numbers, Ctrl/⌘+Enter to run, undoable Reset, and the line a traceback
-  points at highlighted), streamed output (progress bars rewrite in place) and
-  figures. Stop terminates the worker and starts a new one. A header switch
-  turns bilby test mode on (amber page) or off; it defaults to on and is
-  remembered per browser.
+- **Page** (`index.html`, `app.js`):
+  - Example tree that mirrors bilby's `examples/`, with a search box; it can be
+    hidden, and on phones (below 700px) it is a drawer.
+  - Each example's docstring is shown above the editor as formatted text
+    (converted from reStructuredText by `scripts/make_manifest.py`) and left
+    out of the editor.
+  - CodeMirror 6 editor (`editor/editor.js`, bundled into `editor.bundle.js`
+    by `npm run build:editor`): Python highlighting, Ctrl/⌘+Enter to run,
+    undoable Reset, the line a traceback points at highlighted. New opens a
+    blank editor (`#scratch`, kept per browser); Download saves the script.
+  - Output: each run is a collapsible block; progress bars rewrite in place;
+    figures enlarge on click and download; Copy copies the text; Results
+    downloads a zip of every file the run wrote.
+  - Stop terminates the worker and starts a new one.
+  - Header: sidebar toggle, bilby-dev logo, status, test-mode switch (amber
+    page while on), links, and an auto/light/dark theme button. Test mode is
+    on by default when served locally and off on the live site; a choice
+    made with the switch is remembered per browser.
+  - Drag the gap between editor and output to resize them.
 - **Worker** (`worker.js`, `py/bootstrap.py`): Pyodide 0.29.5 from jsDelivr.
   Installs bilby at startup, LALSuite on the first GW example, and extras
   (gwpy, gwosc, gwinc, scikit-image) when an example needs them.
@@ -28,9 +39,14 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
   a pure-Python igwn-segments from its sdist (for gwpy), and LALSuite from the
   GitLab job pinned with its sha256 in `lalsuite-wheel.json`.
 - **Deploy**: `.github/workflows/pages.yml` runs the scripts on every push to
-  `main` and publishes only the site files.
+  `main` and publishes only the site files. It stamps the commit hash into
+  the script URLs (`?v=dev` locally), and the page passes it on to the
+  worker and its fetches, so a deploy never mixes with cached files.
+- **Local development**: `scripts/dev.sh` builds everything and serves the
+  site with `scripts/serve.py`, which disables browser caching.
 - **Testing**: `scripts/test-examples.mjs` runs examples headlessly in Node
-  (test mode on unless `--full`).
+  (test mode on unless `--full`); `.github/workflows/tests.yml` runs every
+  supported example and a Playwright smoke test separately from deploys.
 
 ### Where packages come from
 
@@ -65,11 +81,17 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
   every PyPI wheel per package group with its sha256 and licence;
   `scripts/fetch-pypi-wheels.py` downloads them and the site installs only
   from its own files. Pyodide's own packages still come from jsDelivr.
-- **Tests in CI** — the workflow runs `scripts/test-all.mjs` (every
+- **Tests in CI** — `tests.yml` runs `scripts/test-all.mjs` (every
   supported example in Node, test mode, failures checked against
   `tests/known-failures.json`) and a Playwright smoke test of the assembled
-  site, on pushes and pull requests; only `main` deploys.
+  site, on pushes and pull requests; deploys (`pages.yml`) do not wait for it.
 - `eccentric_inspiral` works: GWSignal now triggers the gwpy install.
+- **Editor** — CodeMirror 6 replaced the textarea.
+- **Page polish** — example search and hideable sidebar, formatted
+  docstrings, blank editor, script and results downloads, collapsible runs,
+  figure viewer, copy output, resizable panes, theme switch, logo, restyled
+  example tree, phone layout, and cache-busting on deploy. Test mode is now
+  off by default on the live site.
 
 ## Next steps
 
@@ -90,6 +112,14 @@ In rough priority order.
    Upstream: ship the bundled libraries' licence files in the wheel.
 4. **Upstream bilby issues.** `PriorDict.rescale` with joint priors (#886);
    the GWSignal `ImportError` hides its cause (chain it with `from`).
-5. **Polish.** A real progress bar, downloading
-   results (result JSON, figures), a "copy as script" button, phone layout
-   and accessibility checks.
+5. **Polish.**
+   - A progress bar for start-up and installs (Pyodide, bilby's packages,
+     LALSuite on the first GW example), which now only show status text.
+   - Optionally, richer tqdm bars like Jupyter's, if it needs no real changes
+     to the packages: `tqdm.notebook` needs ipywidgets and a Jupyter kernel,
+     so the likelier route is the page drawing a bar from tqdm's text lines
+     (a percentage only when tqdm knows the total; dynesty's does not).
+   - An accessibility check (keyboard use, screen readers, contrast).
+   - A sharper logo (the only copy found is the 192px GitHub avatar).
+   - Docstrings that describe samplers the adaptations replaced (e.g.
+     PyMultiNest in `slabspike_example`) could be noted or adjusted.
