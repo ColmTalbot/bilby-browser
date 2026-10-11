@@ -408,7 +408,7 @@ async function main() {
   const manifest = await (await fetch(versioned("examples/manifest.json"))).json();
   const tree = document.createElement("div");
   buildTree(manifest, tree);
-  $("tree").appendChild(tree);
+  $("tree").insertBefore(tree, $("tree").querySelector(".links")); // links stay last (phones)
   if (manifest.commit) {
     const link = $("source");
     link.href = `https://github.com/bilby-dev/bilby/tree/${manifest.commit}/examples`;
@@ -432,18 +432,53 @@ $("test-mode").addEventListener("change", (e) => {
   showTestMode();
 });
 
-// the example list can be hidden; remembered per browser
-const showTree = (visible) => {
-  document.body.classList.toggle("tree-hidden", !visible);
+// the example list can be hidden; remembered per browser. On phones it is a
+// drawer over the page instead, closed after picking an example.
+const phone = matchMedia("(max-width: 700px)");
+const treeVisible = () => phone.matches
+  ? document.body.classList.contains("tree-open")
+  : !document.body.classList.contains("tree-hidden");
+const showTree = () => {
+  const visible = treeVisible();
   $("toggle-tree").setAttribute("aria-expanded", String(visible));
   $("toggle-tree").title = visible ? "Hide the example list" : "Show the example list";
 };
-showTree(stored("bilby-tree-hidden") !== "1");
+function setDrawer(open) {
+  document.body.classList.toggle("tree-open", open);
+  showTree();
+  if (open) $("search").focus({ preventScroll: true });
+}
+document.body.classList.toggle("tree-hidden", stored("bilby-tree-hidden") === "1");
+showTree();
 $("toggle-tree").addEventListener("click", () => {
-  const visible = document.body.classList.contains("tree-hidden");
-  store("bilby-tree-hidden", visible ? "0" : "1");
-  showTree(visible);
+  if (phone.matches) return setDrawer(!treeVisible());
+  const hidden = !document.body.classList.contains("tree-hidden");
+  document.body.classList.toggle("tree-hidden", hidden);
+  store("bilby-tree-hidden", hidden ? "1" : "0");
+  showTree();
 });
+$("scrim").addEventListener("click", () => setDrawer(false));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.body.classList.contains("tree-open")) setDrawer(false);
+});
+$("tree").addEventListener("click", (e) => {
+  if (phone.matches && e.target.closest("a[data-path]")) setDrawer(false);
+});
+// the header links live at the bottom of the drawer on phones
+const placeLinks = () => {
+  const links = document.querySelector(".links");
+  if (phone.matches) $("tree").appendChild(links);
+  else document.querySelector("header").appendChild(links);
+  document.body.classList.remove("tree-open");
+  showTree();
+};
+placeLinks();
+phone.addEventListener("change", placeLinks);
+// iOS zooms in when focusing text smaller than 16px (the editor); stop that
+// zoom there only (iOS still allows pinch zoom with maximum-scale set)
+if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+  document.querySelector('meta[name="viewport"]').content += ", maximum-scale=1";
+}
 
 $("run").addEventListener("click", run);
 $("new").addEventListener("click", () => {

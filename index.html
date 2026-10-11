@@ -70,7 +70,7 @@
     #output-pane { grid-column: 1 / -1; }
     #divider { display: none; }
   }
-  @media (max-width: 700px) { main, body.tree-hidden main { grid-template-columns: 1fr; } }
+  #scrim { display: none; }
 
   nav { overflow: auto; font-size: 13px; border-right: 1px solid var(--border);
         padding-right: 8px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: thin; }
@@ -209,6 +209,36 @@
   #lightbox .bar { display: flex; gap: 12px; justify-content: center; padding-top: 8px; }
   #lightbox .bar a, #lightbox .bar button { color: #fff; font-size: 13px; }
   #lightbox .bar button { background: transparent; border-color: rgba(255, 255, 255, 0.4); }
+  /* phones: the example list is a drawer over the page (opened with the
+     sidebar button), the header links move into it, toolbars wrap */
+  @media (max-width: 700px) {
+    header { padding: 8px 12px; gap: 10px; flex-wrap: nowrap; }
+    header h1 img { width: 26px; height: 26px; }
+    #status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .toggle { flex: none; }
+    main, body.tree-hidden main { grid-template-columns: minmax(0, 1fr); padding: 10px 12px; gap: 12px; }
+    nav, body.tree-hidden nav { display: flex; position: fixed; z-index: 30; top: 0; bottom: 0; left: 0;
+          width: min(85vw, 320px); padding: 12px; background: var(--bg); border-right: 1px solid var(--border);
+          box-shadow: 0 0 24px rgba(0, 0, 0, 0.25); transform: translateX(-105%);
+          transition: transform 0.2s ease; visibility: hidden; }
+    body.tree-open nav { transform: none; visibility: visible; }
+    body.tree-open #scrim { display: block; position: fixed; inset: 0; z-index: 29;
+                            background: rgba(0, 0, 0, 0.35); }
+    #search { font-size: 16px; } /* smaller text makes iOS zoom in on focus */
+    nav a, nav summary { padding-top: 7px; padding-bottom: 7px; }
+    nav .links { margin: auto 0 0; padding-top: 12px; border-top: 1px solid var(--border);
+                 display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px; }
+    nav .links a { color: var(--muted); display: inline; padding: 4px 0; margin: 0; text-decoration: underline; }
+    .pane > .toolbar { flex-wrap: wrap; }
+    #title { flex-basis: 100%; }
+    .toolbar .spacer { display: none; }
+    .toolbar button { padding: 8px 12px; }
+    #run { margin-left: auto; }
+    #code { flex: none; height: 60vh; min-height: 260px; }
+    #output { min-height: 50vh; }
+    #output-pane .hint .long { display: none; }
+  }
+  @media (max-width: 700px) and (prefers-reduced-motion: reduce) { nav { transition: none; } }
 </style>
 </head>
 <body>
@@ -254,7 +284,7 @@
   <section class="pane" id="output-pane">
     <div id="divider" role="separator" aria-orientation="vertical" aria-label="Resize editor and output" title="Drag to resize; double-click to reset"></div>
     <div class="toolbar">
-      <span class="hint">Output (runs in your browser with Pyodide; one CPU core)</span>
+      <span class="hint">Output<span class="long"> (runs in your browser with Pyodide; one CPU core)</span></span>
       <span class="spacer"></span>
       <button id="download-results" title="Download the files the last run wrote, as a zip" disabled>Results</button>
       <button id="copy" title="Copy all output as text">Copy</button>
@@ -263,6 +293,7 @@
     <div id="output" aria-live="polite"></div>
   </section>
 </main>
+<div id="scrim"></div>
 <dialog id="lightbox" aria-label="Figure">
   <img alt="">
   <div class="bar"><a download>Download</a><button>Close</button></div>
