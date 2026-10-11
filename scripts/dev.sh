@@ -14,4 +14,4 @@ python3 scripts/write_wheel_index.py
 python3 scripts/make_manifest.py
 python3 scripts/write_licenses.py
 echo "serving on http://localhost:${PORT:-8000}"
-exec python3 -m http.server "${PORT:-8000}" --bind 127.0.0.1
+exec python3 scripts/serve.py "${PORT:-8000}"
