@@ -1,0 +1,6 @@
+{
+ "url": "https://git.ligo.org/colm.talbot/lalsuite/-/jobs/5185942/artifacts/raw/wheelhouse-pyodide/lalsuite-7.26.16.1-cp313-cp313-pyodide_2025_0_wasm32.whl",
+ "sha256": "f77819296ae929b46ead5891a11dc2c2cd06d746b6f3ec94cb44b0943d77ccf8",
+ "source_commit": "4554d05a18bab52b671281404278e5112ae89aa5",
+ "source_repo": "https://git.ligo.org/colm.talbot/lalsuite"
+}

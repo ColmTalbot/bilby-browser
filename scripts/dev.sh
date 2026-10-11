@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
-# Local development server. See LOCAL-ONLY.md for the hardcoded paths.
+# Local development server: builds/fetches everything the site needs, then
+# serves it on http://localhost:8000 (PORT to change).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 scripts/fetch-bilby.sh
 scripts/build-igwn-segments.sh
-
-LALSUITE_WHEELHOUSE="${LALSUITE_WHEELHOUSE:-$HOME/software/lalsuite/wheelhouse}"
-mkdir -p wheels
-cp -p "$LALSUITE_WHEELHOUSE"/lalsuite-*pyodide*.whl wheels/
+scripts/fetch-lalsuite.sh   # set LALSUITE_WHEELHOUSE to use a local build
 python3 scripts/write_wheel_index.py
 python3 scripts/make_manifest.py
 echo "serving on http://localhost:${PORT:-8000}"

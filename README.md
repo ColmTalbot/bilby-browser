@@ -16,6 +16,17 @@ them. Neither is stored in this repository. To move to the current `main`:
 scripts/fetch-bilby.sh --update
 ```
 
+## Other wheels
+
+`wheels/` is generated, never committed:
+
+- `scripts/build-igwn-segments.sh` rebuilds igwn-segments (needed by gwpy) as
+  a pure-Python wheel from its sdist.
+- `scripts/fetch-lalsuite.sh` downloads the LALSuite Pyodide wheel pinned,
+  with its sha256, in `lalsuite-wheel.json` (a CI artifact of
+  [colm.talbot/lalsuite](https://git.ligo.org/colm.talbot/lalsuite)). Set
+  `LALSUITE_WHEELHOUSE` to serve a local build instead.
+
 ## Run locally
 
 ```bash
@@ -28,8 +39,8 @@ like, and press Run (Ctrl/⌘+Enter). Stop restarts Python.
 ## Deployment
 
 `.github/workflows/pages.yml` deploys every push to `main` to
-https://colmtalbot.github.io/bilby-browser/. It runs `scripts/fetch-bilby.sh`
-and `scripts/make_manifest.py` to generate `examples/`, then publishes
+https://colmtalbot.github.io/bilby-browser/. It runs the scripts above to generate
+`examples/` and `wheels/`, then publishes
 `index.html`, `app.js`, `worker.js`, `py/`, `wheels/` and `examples/`.
 
 ## Run examples headlessly (Node)

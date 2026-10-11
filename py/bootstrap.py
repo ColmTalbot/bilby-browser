@@ -117,7 +117,11 @@ async def install_extras(names, wheel_urls):
         extra = EXTRAS[name]
         for key in extra.get("wheels", []):
             if not wheel_urls.get(key):
-                raise RuntimeError(f"{name} needs the {key} wheel; run scripts/dev.sh")
+                raise RuntimeError(
+                    f"{name} cannot be installed because this site is missing its "
+                    f"{key} package. Please report this at "
+                    "https://github.com/ColmTalbot/bilby-browser/issues"
+                )
         if name == "gwpy":
             await _install_gwpy(wheel_urls["igwn_segments"])
         else:

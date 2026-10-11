@@ -32,7 +32,10 @@ const py = (name) => pyodide.globals.get(name);
 // copy a wheel from wheels/ into Pyodide's file system; returns its emfs: URL
 function stageWheel(prefix) {
   const wheel = readdirSync(join(ROOT, "wheels")).filter((f) => f.startsWith(prefix) && f.endsWith(".whl")).sort().pop();
-  if (!wheel) throw new Error(`no ${prefix}*.whl in wheels/ (run scripts/dev.sh)`);
+  if (!wheel) {
+    const script = { "bilby-": "fetch-bilby.sh", "lalsuite-": "fetch-lalsuite.sh", "igwn_segments-": "build-igwn-segments.sh" }[prefix];
+    throw new Error(`no ${prefix}*.whl in wheels/; run scripts/${script} (or scripts/dev.sh for everything)`);
+  }
   pyodide.FS.mkdirTree("/tmp/wheels");
   pyodide.FS.writeFile(`/tmp/wheels/${wheel}`, readFileSync(join(ROOT, "wheels", wheel)));
   return `emfs:/tmp/wheels/${wheel}`;

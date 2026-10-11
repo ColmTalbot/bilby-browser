@@ -1,9 +1,9 @@
 # Build the site and deploy it to GitHub Pages.
 #
-# examples/ and examples/manifest.json are generated here from the bilby
-# commit pinned in bilby-commit.txt; they are not stored in the repository.
-# The wheels in wheels/ are committed for now (see LOCAL-ONLY.md); their
-# index.json is generated.
+# Nothing the site serves from examples/ or wheels/ is stored in the
+# repository: the examples and the bilby wheel come from the commit pinned in
+# bilby-commit.txt, igwn-segments is rebuilt from its sdist, and the LALSuite
+# wheel is downloaded from the GitLab job pinned in lalsuite-wheel.json.
 name: Deploy to GitHub Pages
 
 on:
@@ -30,8 +30,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Fetch and adapt the bilby examples
+      - name: Fetch bilby (examples and wheel) at the pinned commit
         run: scripts/fetch-bilby.sh
+
+      - name: Build the pure-Python igwn-segments wheel
+        run: scripts/build-igwn-segments.sh
+
+      - name: Download the pinned LALSuite wheel
+        run: scripts/fetch-lalsuite.sh
 
       - name: Write the example manifest and wheel index
         run: |

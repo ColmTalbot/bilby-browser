@@ -19,7 +19,15 @@ function stream(kind) {
   };
 }
 
-const wheelIndex = async () => (await fetch("wheels/index.json")).json();
+const REPORT = "Please report this at https://github.com/ColmTalbot/bilby-browser/issues";
+
+async function wheelIndex() {
+  const response = await fetch("wheels/index.json");
+  if (!response.ok) {
+    throw new Error(`This site could not load its package list (HTTP ${response.status}). ${REPORT}`);
+  }
+  return response.json();
+}
 
 async function init() {
   post("status", { text: "Loading Pyodide…" });
@@ -29,7 +37,7 @@ async function init() {
   pyodide.registerJsModule("_site", { image: (name, b64) => post("image", { name, b64 }) });
   pyodide.runPython(await (await fetch("py/bootstrap.py")).text());
   const index = await wheelIndex();
-  if (!index.bilby) throw new Error("no bilby wheel in wheels/ (run scripts/dev.sh)");
+  if (!index.bilby) throw new Error(`This site is missing its bilby package, so Python cannot start. ${REPORT}`);
   post("status", { text: `Installing ${index.bilby}…` });
   const version = await py("install_bilby")(new URL("wheels/" + index.bilby, self.location).href);
   post("ready", { text: `bilby ${version} · Pyodide ${pyodide.version}` });
@@ -39,7 +47,9 @@ async function init() {
 function installLalsuite() {
   lalsuite ??= (async () => {
     const index = await wheelIndex();
-    if (!index.lalsuite) throw new Error("no LALSuite wheel in wheels/ (run scripts/dev.sh)");
+    if (!index.lalsuite) {
+      throw new Error(`This site is missing its LALSuite package, so gravitational-wave examples cannot run. ${REPORT}`);
+    }
     post("status", { text: `Installing ${index.lalsuite}…` });
     const url = new URL("wheels/" + index.lalsuite, self.location).href;
     post("info", { text: `LAL ${await py("install_lalsuite")(url)} installed` });
