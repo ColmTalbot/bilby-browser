@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bilby</title>
 <link rel="icon" href="assets/bilby-logo.jpg">
+<script>try { const t = localStorage.getItem("bilby-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 <style>
   :root {
     --bg: #ffffff; --fg: #1d1d1f; --muted: #6b6b70; --panel: #f5f5f7;
@@ -15,9 +16,13 @@
     --active-line: rgba(36, 87, 197, 0.06); --selection: rgba(36, 87, 197, 0.22);
     --error-line: rgba(179, 38, 30, 0.14);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: light;
   }
+  /* dark: from the system setting unless the theme button picked light, or
+     picked explicitly (the two blocks must stay identical) */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
       --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --panel: #202024;
       --border: #34343a; --accent: #7aa2ff; --ok: #5cc27a; --err: #ff7b72;
       --code-bg: #1b1b1e; --warn: #ffcc66; --warn-bg: #3a2e12; --warn-border: #c99400;
@@ -27,8 +32,19 @@
       --error-line: rgba(255, 123, 114, 0.18);
     }
   }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --panel: #202024;
+    --border: #34343a; --accent: #7aa2ff; --ok: #5cc27a; --err: #ff7b72;
+    --code-bg: #1b1b1e; --warn: #ffcc66; --warn-bg: #3a2e12; --warn-border: #c99400;
+    --syn-keyword: #d2a8ff; --syn-string: #7ee787; --syn-number: #ffa657; --syn-comment: #8b949e;
+    --syn-def: #79c0ff; --syn-call: #e6edf3; --syn-builtin: #ffa198;
+    --active-line: rgba(122, 162, 255, 0.07); --selection: rgba(122, 162, 255, 0.28);
+    --error-line: rgba(255, 123, 114, 0.18);
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         height: 100vh; display: flex; flex-direction: column; }
   header { padding: 12px 16px; border-bottom: 1px solid var(--border);
            display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
   header h1 { font-size: 17px; margin: 0; font-weight: 600; display: flex; align-items: center; gap: 8px; }
@@ -42,18 +58,28 @@
                  border-color: transparent; }
   .icon-button:hover { color: var(--fg); background: var(--panel); border-color: var(--border); }
   .icon-button svg { width: 18px; height: 18px; }
+  #theme { font-size: 12px; padding: 4px 8px; line-height: 1.2; color: var(--muted); }
   #status.ok { color: var(--ok); } #status.err { color: var(--err); }
-  main { display: grid; grid-template-columns: 260px minmax(0, 1fr) minmax(0, 1fr);
-         gap: 16px; padding: 12px 16px; height: calc(100vh - 50px); }
+  main { display: grid;
+         grid-template-columns: 260px minmax(0, var(--left, 1fr)) minmax(0, var(--right, 1fr));
+         gap: 16px; padding: 12px 16px; flex: 1; min-height: 0; }
   @media (max-width: 1100px) {
+    body { height: auto; }
+    main { grid-template-columns: 220px minmax(0, 1fr); }
     body.tree-hidden main { grid-template-columns: minmax(0, 1fr); }
-    main { grid-template-columns: 220px minmax(0, 1fr); height: auto; }
     #output-pane { grid-column: 1 / -1; }
+    #divider { display: none; }
   }
   @media (max-width: 700px) { main, body.tree-hidden main { grid-template-columns: 1fr; } }
 
   nav { overflow: auto; font-size: 13px; border-right: 1px solid var(--border);
-        padding-right: 8px; }
+        padding-right: 8px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: thin; }
+  #search { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 6px; width: 100%;
+            border: 1px solid var(--border); background: var(--code-bg); color: var(--fg);
+            position: sticky; top: 0; }
+  #search:focus { outline: none; border-color: var(--accent); }
+  #no-match { color: var(--muted); font-size: 12px; padding: 3px 6px; }
+  nav .hidden { display: none; }
   nav summary { cursor: pointer; padding: 3px 0; font-weight: 600; }
   nav .children { padding-left: 12px; border-left: 1px solid var(--border);
                   margin-left: 4px; }
@@ -92,6 +118,12 @@
   #output .run.test { color: var(--warn); }
 
   .pane { display: flex; flex-direction: column; min-height: 0; gap: 8px; }
+  #output-pane { position: relative; }
+  /* drag to resize the editor and output panes; sits in the grid gap */
+  #divider { position: absolute; left: -12px; top: 0; bottom: 0; width: 8px; cursor: col-resize;
+             border-radius: 4px; touch-action: none; }
+  #divider:hover, #divider.dragging { background: var(--border); }
+  body.resizing { cursor: col-resize; user-select: none; }
   .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .toolbar .spacer { flex: 1; }
   #title { font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -119,10 +151,24 @@
   #output .stderr { color: var(--muted); }
   #output .error { color: var(--err); }
   #output .info { color: var(--muted); font-style: italic; }
-  #output .run { color: var(--accent); margin-top: 10px; font-weight: 600; }
+  #output .run { color: var(--accent); font-weight: 600; cursor: pointer; }
+  #output details.run-block { margin-top: 10px; }
+  #output details.run-block:first-child { margin-top: 0; }
+  #output details.run-block > summary { list-style: none; }
+  #output details.run-block > summary::-webkit-details-marker { display: none; }
+  #output details.run-block > summary::before { content: "▾ "; color: var(--muted); }
+  #output details.run-block:not([open]) > summary::before { content: "▸ "; }
   #output figure { margin: 8px 0; }
-  #output img { max-width: 100%; background: #fff; border-radius: 6px; }
+  #output img { max-width: 100%; background: #fff; border-radius: 6px; cursor: zoom-in; }
   #output figcaption { font-size: 11px; color: var(--muted); }
+  #output figcaption a, #output .info a { color: var(--muted); margin-left: 8px; }
+  #lightbox { border: none; padding: 0; background: transparent; max-width: 96vw; max-height: 96vh; }
+  #lightbox::backdrop { background: rgba(0, 0, 0, 0.75); }
+  #lightbox img { display: block; max-width: 96vw; max-height: 88vh; background: #fff;
+                  border-radius: 6px; cursor: zoom-out; }
+  #lightbox .bar { display: flex; gap: 12px; justify-content: center; padding-top: 8px; }
+  #lightbox .bar a, #lightbox .bar button { color: #fff; font-size: 13px; }
+  #lightbox .bar button { background: transparent; border-color: rgba(255, 255, 255, 0.4); }
 </style>
 </head>
 <body>
@@ -143,10 +189,14 @@
     <a id="source"></a>
     <a href="https://github.com/ColmTalbot/bilby-browser">Site source</a>
     <a href="licenses.html">Licences</a>
+    <button id="theme" title="Colour theme">Theme: auto</button>
   </span>
 </header>
 <main>
-  <nav id="tree" aria-label="Examples"></nav>
+  <nav id="tree" aria-label="Examples">
+    <input id="search" type="search" placeholder="Search examples" aria-label="Search examples" autocomplete="off">
+    <div id="no-match" class="hidden">No matching examples</div>
+  </nav>
   <section class="pane">
     <div class="toolbar">
       <span id="title"></span>
@@ -161,14 +211,20 @@
     <div id="code"></div>
   </section>
   <section class="pane" id="output-pane">
+    <div id="divider" role="separator" aria-orientation="vertical" aria-label="Resize editor and output" title="Drag to resize; double-click to reset"></div>
     <div class="toolbar">
       <span class="hint">Output (runs in your browser with Pyodide; one CPU core)</span>
       <span class="spacer"></span>
+      <button id="copy" title="Copy all output as text">Copy</button>
       <button id="clear">Clear</button>
     </div>
     <div id="output" aria-live="polite"></div>
   </section>
 </main>
+<dialog id="lightbox" aria-label="Figure">
+  <img alt="">
+  <div class="bar"><a download>Download</a><button>Close</button></div>
+</dialog>
 <!-- ?v=dev becomes the commit hash when deployed, so each deploy bypasses
      cached copies; app.js passes it on to the worker and its fetches -->
 <script src="editor.bundle.js?v=dev"></script>

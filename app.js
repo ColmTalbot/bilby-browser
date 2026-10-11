@@ -40,6 +40,9 @@ function setRunning(value) {
 
 const nearBottom = () => output.scrollHeight - output.scrollTop - output.clientHeight < 40;
 
+// where output goes: the latest run's block, or the pane itself
+let block = output;
+
 function scrolled(fn) {
   const stick = nearBottom();
   fn();
@@ -51,7 +54,24 @@ function append(text, cls) {
     const pre = document.createElement("pre");
     if (cls) pre.className = cls;
     pre.textContent = text;
-    output.appendChild(pre);
+    block.appendChild(pre);
+  });
+  line = null;
+}
+
+// Start a collapsible block for a run; earlier runs collapse.
+function startRun(text, cls) {
+  for (const old of output.querySelectorAll("details.run-block")) old.open = false;
+  scrolled(() => {
+    const details = document.createElement("details");
+    details.className = "run-block";
+    details.open = true;
+    const summary = document.createElement("summary");
+    summary.className = cls;
+    summary.textContent = text;
+    details.appendChild(summary);
+    output.appendChild(details);
+    block = details;
   });
   line = null;
 }
@@ -85,7 +105,7 @@ function newLine(kind) {
   line = document.createElement("pre");
   line.className = kind;
   lineKind = kind;
-  output.appendChild(line);
+  block.appendChild(line);
 }
 
 function showImage(name, b64) {
@@ -94,13 +114,31 @@ function showImage(name, b64) {
     const img = document.createElement("img");
     img.src = "data:image/png;base64," + b64;
     img.alt = name;
+    img.addEventListener("click", () => openFigure(img.src, name));
     const caption = document.createElement("figcaption");
     caption.textContent = name;
+    const download = document.createElement("a");
+    download.href = img.src;
+    download.download = name.split("/").pop();
+    download.textContent = "download";
+    caption.appendChild(download);
     figure.append(img, caption);
-    output.appendChild(figure);
+    block.appendChild(figure);
   });
   line = null;
 }
+
+// a figure enlarged over the page, with a download link
+function openFigure(src, name) {
+  const box = $("lightbox");
+  box.querySelector("img").src = src;
+  box.querySelector("img").alt = name;
+  const download = box.querySelector("a");
+  download.href = src;
+  download.download = name.split("/").pop();
+  box.showModal();
+}
+$("lightbox").addEventListener("click", (e) => { if (e.target.tagName !== "A") $("lightbox").close(); });
 
 // ---- worker ---------------------------------------------------------------
 
@@ -157,7 +195,7 @@ function run() {
   setRunning(true);
   setStatus("Running " + current.path + "…");
   const testMode = $("test-mode").checked;
-  append(">>> " + current.path + (testMode ? " (test mode)" : ""), testMode ? "run test" : "run");
+  startRun(">>> " + current.path + (testMode ? " (test mode)" : ""), testMode ? "run test" : "run");
   editor.markErrorLine(null);
   worker.postMessage({ type: "run", path: current.path, code: editor.getValue(), files: current.files, testMode });
 }
@@ -166,6 +204,7 @@ function stop() {
   if (!running) return;
   worker.terminate();
   append("stopped; restarting Python", "error");
+  block = output;
   running = false;
   startWorker();
 }
@@ -200,6 +239,42 @@ function buildTree(node, parent, depth = 0) {
     parent.appendChild(link);
   }
 }
+
+// Show only the examples whose path matches every word typed, with their
+// folders opened; an empty search restores the folders as they were.
+let openBeforeSearch = null;
+function filterTree(query) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const folders = [...document.querySelectorAll("#tree details")];
+  if (words.length && !openBeforeSearch) openBeforeSearch = folders.map((d) => d.open);
+  let any = false;
+  for (const a of document.querySelectorAll("#tree a")) {
+    const match = words.every((w) => a.dataset.path.toLowerCase().includes(w));
+    a.classList.toggle("hidden", !match);
+    any ||= match;
+  }
+  // innermost folders first, so a parent sees whether its children are visible
+  for (const details of folders.reverse()) {
+    const visible = !words.length || details.querySelector(".children > :not(.hidden)") !== null;
+    details.classList.toggle("hidden", !visible);
+    if (words.length) details.open = visible;
+  }
+  if (!words.length && openBeforeSearch) {
+    folders.reverse().forEach((d, i) => { d.open = openBeforeSearch[i]; });
+    openBeforeSearch = null;
+  }
+  $("no-match").classList.toggle("hidden", any || !words.length);
+}
+$("search").addEventListener("input", (e) => filterTree(e.target.value));
+$("search").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    const first = document.querySelector("#tree a:not(.hidden)");
+    if (first) location.hash = first.dataset.path;
+  } else if (e.key === "Escape") {
+    e.target.value = "";
+    filterTree("");
+  }
+});
 
 async function select(path) {
   if (path === "scratch") return openScratch();
@@ -251,7 +326,9 @@ function showNotes({ changes, support }) {
 
 async function main() {
   const manifest = await (await fetch(versioned("examples/manifest.json"))).json();
-  buildTree(manifest, $("tree"));
+  const tree = document.createElement("div");
+  buildTree(manifest, tree);
+  $("tree").appendChild(tree);
   if (manifest.commit) {
     const link = $("source");
     link.href = `https://github.com/bilby-dev/bilby/tree/${manifest.commit}/examples`;
@@ -294,7 +371,79 @@ $("new").addEventListener("click", () => {
   else location.hash = "scratch";
 });
 $("stop").addEventListener("click", stop);
-$("clear").addEventListener("click", () => { output.innerHTML = ""; line = null; });
+$("clear").addEventListener("click", () => {
+  output.innerHTML = "";
+  block = output;
+  line = null;
+});
+$("copy").addEventListener("click", async () => {
+  // open collapsed runs so their text is included
+  const closed = [...output.querySelectorAll("details:not([open])")];
+  closed.forEach((d) => { d.open = true; });
+  const text = output.innerText;
+  closed.forEach((d) => { d.open = false; });
+  try {
+    await navigator.clipboard.writeText(text);
+    flash($("copy"), "Copied");
+  } catch {
+    flash($("copy"), "Copy failed");
+  }
+});
+function flash(button, text) {
+  const label = button.dataset.label ||= button.textContent;
+  button.textContent = text;
+  setTimeout(() => { button.textContent = label; }, 1200);
+}
+
+// drag the divider to share the width between editor and output; remembered
+function setSplit(fraction) {
+  const main = document.querySelector("main");
+  if (fraction == null) {
+    main.style.removeProperty("--left");
+    main.style.removeProperty("--right");
+    return;
+  }
+  main.style.setProperty("--left", `${fraction}fr`);
+  main.style.setProperty("--right", `${1 - fraction}fr`);
+}
+const savedSplit = parseFloat(stored("bilby-split"));
+if (savedSplit > 0 && savedSplit < 1) setSplit(savedSplit);
+$("divider").addEventListener("pointerdown", (e) => {
+  const divider = e.currentTarget;
+  const left = document.querySelector("main > .pane").getBoundingClientRect().left;
+  const right = $("output-pane").getBoundingClientRect().right;
+  divider.setPointerCapture(e.pointerId);
+  divider.classList.add("dragging");
+  document.body.classList.add("resizing");
+  let fraction = null;
+  const move = (ev) => {
+    fraction = Math.min(0.8, Math.max(0.2, (ev.clientX - left) / (right - left)));
+    setSplit(fraction);
+  };
+  const up = () => {
+    divider.removeEventListener("pointermove", move);
+    divider.classList.remove("dragging");
+    document.body.classList.remove("resizing");
+    if (fraction != null) store("bilby-split", String(fraction));
+  };
+  divider.addEventListener("pointermove", move);
+  divider.addEventListener("pointerup", up, { once: true });
+});
+$("divider").addEventListener("dblclick", () => { setSplit(null); store("bilby-split", ""); });
+
+// colour theme: follow the system (auto), or force light or dark
+const THEMES = ["auto", "light", "dark"];
+const showTheme = (theme) => {
+  if (theme === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  $("theme").textContent = "Theme: " + theme;
+};
+showTheme(stored("bilby-theme") || "auto");
+$("theme").addEventListener("click", () => {
+  const theme = THEMES[(THEMES.indexOf(stored("bilby-theme") || "auto") + 1) % THEMES.length];
+  store("bilby-theme", theme === "auto" ? "" : theme);
+  showTheme(theme);
+});
 $("reset").addEventListener("click", () => { if (current) editor.reset(current.original); });
 
 startWorker();

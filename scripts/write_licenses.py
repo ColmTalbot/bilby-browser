@@ -93,12 +93,17 @@ def main():
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bilby licences</title>
+<script>try {{ const t = localStorage.getItem("bilby-theme"); if (t) document.documentElement.dataset.theme = t; }} catch {{}}</script>
 <style>
   :root {{ --bg: #fff; --fg: #1d1d1f; --muted: #6b6b70; --border: #d8d8dc; --accent: #2457c5;
-          font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }}
+          font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color-scheme: light; }}
+  /* dark as on the main page: the system setting, or the theme picked there */
   @media (prefers-color-scheme: dark) {{
-    :root {{ --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --border: #34343a; --accent: #7aa2ff; }}
+    :root:not([data-theme="light"]) {{ color-scheme: dark;
+      --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --border: #34343a; --accent: #7aa2ff; }}
   }}
+  :root[data-theme="dark"] {{ color-scheme: dark;
+    --bg: #161618; --fg: #ececf0; --muted: #9a9aa2; --border: #34343a; --accent: #7aa2ff; }}
   body {{ margin: 0 auto; max-width: 1000px; padding: 16px; background: var(--bg); color: var(--fg);
          line-height: 1.5; font-size: 14px; }}
   a {{ color: var(--accent); }}
