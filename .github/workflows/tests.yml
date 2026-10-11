@@ -1,0 +1,66 @@
+# Test the examples and the page. Independent of deployment (pages.yml):
+# failures here are reported but do not stop the site from deploying.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            wheels
+            .cache
+          key: site-${{ hashFiles('bilby-commit.txt', 'lalsuite-wheel.json', 'packages.lock.json', 'scripts/fetch-bilby.sh', 'scripts/build-igwn-segments.sh') }}
+
+      - name: Install Node tools and build the code editor
+        run: |
+          npm ci
+          npm run build:editor
+
+      - name: Build the site
+        run: |
+          scripts/fetch-bilby.sh
+          scripts/build-igwn-segments.sh
+          scripts/fetch-lalsuite.sh
+          python3 scripts/fetch-pypi-wheels.py
+          python3 scripts/make_manifest.py
+          python3 scripts/write_wheel_index.py
+          python3 scripts/write_licenses.py
+          mkdir _site
+          cp -r index.html licenses.html app.js editor.bundle.js editor.bundle.LICENSE.txt worker.js py wheels examples licenses _site/
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run every supported example in Node (bilby test mode)
+        run: node scripts/test-all.mjs
+
+      - name: Smoke-test the assembled site in Chromium
+        run: npx playwright test
+        env:
+          SITE_DIR: _site
