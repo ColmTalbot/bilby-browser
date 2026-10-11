@@ -271,6 +271,8 @@ function buildTree(node, parent, depth = 0) {
     link.href = "#" + example.path;
     link.textContent = example.name;
     link.title = example.description;
+    link.dataset.doc = JSON.stringify(example.doc || []);
+    link.dataset.headerLines = example.header_lines || 0;
     link.dataset.path = example.path;
     link.dataset.files = JSON.stringify(node.files);
     link.dataset.info = JSON.stringify({ changes: example.changes || [], support: example.support || null });
@@ -329,23 +331,59 @@ async function select(path) {
     if (el.tagName === "DETAILS") el.open = true;
   }
   const response = await fetch(versioned("examples/" + path));
-  const code = await response.text();
-  current = { path, files: JSON.parse(link.dataset.files), original: code };
+  // the shebang and docstring are shown as formatted text above the editor
+  // instead of in it; Download puts them back
+  const lines = (await response.text()).split("\n");
+  const headerLines = Number(link.dataset.headerLines);
+  const code = lines.slice(headerLines).join("\n");
+  current = {
+    path, files: JSON.parse(link.dataset.files), original: code,
+    header: headerLines ? lines.slice(0, headerLines).join("\n") + "\n" : "",
+  };
   editor.load(code);
   $("title").textContent = path;
-  $("description").textContent = link.title.split("\n\n")[0];
+  showDoc(JSON.parse(link.dataset.doc));
   showNotes(JSON.parse(link.dataset.info));
 }
 
 // A blank editor, not tied to an example; its text is kept in this browser.
 function openScratch() {
   for (const a of document.querySelectorAll("#tree a.active")) a.classList.remove("active");
-  current = { path: SCRATCH, files: [], original: "" };
+  current = { path: SCRATCH, files: [], original: "", header: "" };
   editor.load(stored("bilby-scratch") || "");
   $("title").textContent = SCRATCH;
-  $("description").textContent = "A blank editor. Its contents are kept in this browser; Reset clears it.";
+  showDoc(["<p>A blank editor. Its contents are kept in this browser; Reset clears it.</p>"]);
   showNotes({ changes: [], support: null });
   editor.focus();
+}
+
+// The example's docstring (HTML blocks made by scripts/make_manifest.py):
+// the first paragraph, and the rest behind "more"; expanded stays expanded.
+let docExpanded = false;
+function showDoc(blocks) {
+  const doc = $("description");
+  doc.innerHTML = blocks[0] || "";
+  doc.classList.toggle("expanded", docExpanded);
+  if (blocks.length > 1) {
+    const more = document.createElement("div");
+    more.className = "more";
+    more.innerHTML = blocks.slice(1).join("");
+    const toggle = document.createElement("button");
+    toggle.className = "toggle-doc";
+    const label = () => { toggle.textContent = docExpanded ? "less" : "more"; };
+    label();
+    toggle.addEventListener("click", () => {
+      docExpanded = !docExpanded;
+      doc.classList.toggle("expanded", docExpanded);
+      label();
+    });
+    doc.append(more, toggle);
+  }
+  // links open in a new tab, so edits here are not lost
+  for (const a of doc.querySelectorAll("a")) {
+    a.target = "_blank";
+    a.rel = "noopener";
+  }
 }
 
 // What differs from the upstream example, and whether it can run here.
@@ -425,7 +463,7 @@ $("download-results").addEventListener("click", () => {
   if (latestResults) save(latestResults.blob, latestResults.name);
 });
 $("download-script").addEventListener("click", () => {
-  if (current) save(new Blob([editor.getValue()], { type: "text/x-python" }), current.path.split("/").pop());
+  if (current) save(new Blob([current.header + editor.getValue()], { type: "text/x-python" }), current.path.split("/").pop());
 });
 $("copy").addEventListener("click", async () => {
   // open collapsed runs so their text is included
