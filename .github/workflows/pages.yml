@@ -2,7 +2,8 @@
 #
 # examples/ and examples/manifest.json are generated here from the bilby
 # commit pinned in bilby-commit.txt; they are not stored in the repository.
-# The wheels in wheels/ are committed for now (see LOCAL-ONLY.md).
+# The wheels in wheels/ are committed for now (see LOCAL-ONLY.md); their
+# index.json is generated.
 name: Deploy to GitHub Pages
 
 on:
@@ -32,8 +33,10 @@ jobs:
       - name: Fetch and adapt the bilby examples
         run: scripts/fetch-bilby.sh
 
-      - name: Write the example manifest
-        run: python3 scripts/make_manifest.py
+      - name: Write the example manifest and wheel index
+        run: |
+          python3 scripts/make_manifest.py
+          python3 scripts/write_wheel_index.py
 
       - name: Assemble the site
         run: |
