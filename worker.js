@@ -1,5 +1,5 @@
 // Runs Pyodide and bilby off the main thread. Messages:
-//   in:  {type: "run", path, code, files, testMode}
+//   in:  {type: "run", path, code, files, testMode, logLevel}
 //   out: {type: "status" | "progress" | "ready" | "info" | "stream" | "image" | "results" | "done" | "error", ...}
 // The page stops a run by terminating this worker and starting a new one.
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js");
@@ -160,7 +160,7 @@ function installLalsuite() {
 const needsLalsuite = (path, code) =>
   path.startsWith("gw_examples/") || /\b(lal\w*|bilby\.gw)\b/.test(code);
 
-async function run({ path, code, files, testMode }) {
+async function run({ path, code, files, testMode, logLevel = "ERROR" }) {
   const start = performance.now();
   if (needsLalsuite(path, code)) {
     await installLalsuite();
@@ -172,6 +172,7 @@ async function run({ path, code, files, testMode }) {
     post("status", { text: `Running ${path}…` });
   }
   py("set_test_mode")(testMode);
+  py("set_log_level")(logLevel);
   const globals = py("prepare")(path);
   // copy the example's data files (priors, text data, images) next to it
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";

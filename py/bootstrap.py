@@ -165,6 +165,17 @@ async def install_bilby():
     import scipy.signal._spectral_py
 
     scipy.signal._spectral_py._fft_helper = _fft_helper
+
+    # bilby's log level comes from the page (set_log_level), including for
+    # examples that call setup_logger with their own level
+    from bilby.core.utils import log
+
+    original_setup_logger = log.setup_logger
+
+    def setup_logger(outdir=".", label=None, log_level=None, print_version=False):
+        original_setup_logger(outdir, label, _log_level, print_version)
+
+    log.setup_logger = bilby.core.utils.setup_logger = setup_logger
     from bilby.core.sampler.base_sampler import Sampler
 
     # Always run cleanly (the --clean flag): output stays in the in-memory
@@ -244,6 +255,28 @@ def _fft_helper(x, win, detrend_func, nperseg, noverlap, nfft, sides):
         result = result.real
         func = sp_fft.rfft
     return func(result, n=nfft)
+
+
+_log_level = "ERROR"
+
+
+def set_log_level(level):
+    """Show bilby's log messages at `level` (DEBUG, INFO, WARNING or ERROR)
+    and above in the output. Called before each run, so it also drops the
+    previous run's log file: otherwise setup_logger(label=...) would keep
+    writing to it."""
+    global _log_level
+    import logging
+
+    import bilby
+
+    logger = logging.getLogger("bilby")
+    for handler in list(logger.handlers):
+        if isinstance(handler, logging.FileHandler):
+            logger.removeHandler(handler)
+            handler.close()
+    _log_level = level
+    bilby.core.utils.setup_logger()
 
 
 def set_test_mode(enabled):

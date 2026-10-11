@@ -332,7 +332,10 @@ function run() {
   startRun(">>> " + current.path + (testMode ? " (test mode)" : ""), testMode ? "run test" : "run");
   announce(`Running ${current.path.split("/").pop()}` + (testMode ? " in test mode" : ""));
   editor.markErrorLine(null);
-  worker.postMessage({ type: "run", path: current.path, code: editor.getValue(), files: current.files, testMode });
+  worker.postMessage({
+    type: "run", path: current.path, code: editor.getValue(), files: current.files, testMode,
+    logLevel: $("log-level").value,
+  });
 }
 
 function stop() {
@@ -531,6 +534,11 @@ $("test-mode").addEventListener("change", (e) => {
   store("bilby-test-mode", e.target.checked ? "1" : "0");
   showTestMode();
 });
+
+// bilby's log level (ERROR unless changed); remembered per browser
+const savedLogLevel = stored("bilby-log-level");
+if ([...$("log-level").options].some((o) => o.value === savedLogLevel)) $("log-level").value = savedLogLevel;
+$("log-level").addEventListener("change", (e) => store("bilby-log-level", e.target.value));
 
 // the example list can be hidden; remembered per browser. On phones it is a
 // drawer over the page instead, closed after picking an example.

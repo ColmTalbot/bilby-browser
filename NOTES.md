@@ -103,6 +103,9 @@ These notes were written from the LALSuite Pyodide work (branch
   to scipy for welch, median welch, csd, spectrogram, stft and coherence).
   Plain FFTs are unaffected: only a real array over 2 GB fails, and that
   would not fit in wasm32 memory anyway.
+- **bilby logging** goes to stderr at the level chosen in the page's Log
+  menu (ERROR by default). `setup_logger` is wrapped so the menu wins over
+  the level an example asks for.
 - **No multiprocessing or threads** in Pyodide: samplers run on one core.
   `npool` and similar options must stay at 1.
   gwpy 4's `fetch_open_data` always uses a `ThreadPoolExecutor` (even for

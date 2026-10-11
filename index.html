@@ -177,6 +177,9 @@
   body.test-mode #output { border-color: var(--warn-border); }
   body.test-mode #run { background: var(--warn-border); border-color: var(--warn-border); color: #1d1d1f; }
   #output .run.test { color: var(--warn); }
+  .log-level { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  .log-level select { font: inherit; color: var(--fg); background: var(--panel);
+                      border: 1px solid var(--border); border-radius: 999px; padding: 2px 6px; }
 
   .pane { display: flex; flex-direction: column; min-height: 0; gap: 8px; }
   #output-pane { position: relative; }
@@ -259,10 +262,12 @@
   /* phones: the example list is a drawer over the page (opened with the
      sidebar button), the header links move into it, toolbars wrap */
   @media (max-width: 700px) {
-    header { padding: 8px 12px; gap: 10px; flex-wrap: nowrap; }
+    header { padding: 8px 12px; gap: 6px; flex-wrap: nowrap; }
     header h1 img { width: 26px; height: 26px; }
     #status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .toggle { flex: none; }
+    .toggle, .log-level { flex: none; }
+    .log-level > span { display: none; }
+    .log-level select { font-size: 12px; padding: 2px 0; }
     main, body.tree-hidden main, body.editor-hidden main, body.output-hidden main { grid-template-columns: minmax(0, 1fr); padding: 10px 12px; gap: 12px; }
     nav, body.tree-hidden nav { display: flex; position: fixed; z-index: 30; top: 0; bottom: 0; left: 0;
           width: min(85vw, 320px); padding: 12px; background: var(--bg); border-right: 1px solid var(--border);
@@ -316,6 +321,15 @@
     <input type="checkbox" id="test-mode" role="switch">
     <span class="track" aria-hidden="true"></span>
     <span>Test mode</span>
+  </label>
+  <label class="log-level" title="Level of bilby's log messages shown in the output (also for examples that call setup_logger themselves)">
+    <span>Log</span>
+    <select id="log-level">
+      <option>DEBUG</option>
+      <option>INFO</option>
+      <option>WARNING</option>
+      <option selected>ERROR</option>
+    </select>
   </label>
   <span class="links hint">
     <a id="source"></a>
