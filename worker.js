@@ -1,5 +1,6 @@
 // Runs Pyodide and bilby off the main thread. Messages:
-//   in:  {type: "run", path, code, files, testMode, logLevel}
+//   in:  {type: "run", path, code, files, uploads, testMode, logLevel}
+//        (uploads: [{name, bytes}], files the user added, written next to the example)
 //   in:  {type: "read", path}  (a file the run wrote; answered with "file")
 //   out: {type: "status" | "progress" | "ready" | "info" | "stream" | "image" | "files" | "file" | "results" | "done" | "error", ...}
 // The page stops a run by terminating this worker and starting a new one.
@@ -164,7 +165,7 @@ function installLalsuite() {
 const needsLalsuite = (path, code) =>
   path.startsWith("gw_examples/") || /\b(lal\w*|bilby\.gw)\b/.test(code);
 
-async function run({ path, code, files, testMode, logLevel = "ERROR" }) {
+async function run({ path, code, files, uploads = [], testMode, logLevel = "ERROR" }) {
   const start = performance.now();
   watched = null;
   if (needsLalsuite(path, code)) {
@@ -184,6 +185,12 @@ async function run({ path, code, files, testMode, logLevel = "ERROR" }) {
   for (const name of files) {
     const response = await fetch(versioned(`examples/${dir}/${name}`));
     pyodide.FS.writeFile(name, new Uint8Array(await response.arrayBuffer()));
+  }
+  // and the user's own files, after them so an upload can replace one; dated
+  // in the past so they are not taken for files the run wrote
+  for (const { name, bytes } of uploads) {
+    pyodide.FS.writeFile(name, bytes);
+    pyodide.FS.utime(name, 0, 0);
   }
   const since = py("now")();
   watched = { dir: pyodide.FS.cwd(), since: since * 1000, seen: new Map(), last: 0 };

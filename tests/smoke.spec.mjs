@@ -21,6 +21,17 @@ test("core example runs and its figures are in the Files tab", async ({ page }) 
   await expect(page.locator("#file-view img")).toBeVisible();
 });
 
+test("an uploaded file can be read by the script, and is not an output", async ({ page }) => {
+  await page.goto("./#scratch");
+  await page.locator("#upload-input").setInputFiles({ name: "mydata.txt", mimeType: "text/plain", buffer: Buffer.from("1 2\n3 4\n") });
+  await expect(page.locator("#file-list button[data-upload]")).toHaveText(/mydata\.txt/);
+  await expect(page.locator("#status")).toHaveText(/^Ready/, { timeout: 180_000 });
+  await page.evaluate(() => editor.load("import numpy as np\nprint('total', np.loadtxt('mydata.txt').sum())\n"));
+  await page.click("#run");
+  await expect(page.locator("#output")).toContainText("total 10.0", { timeout: 60_000 });
+  await expect(page.locator("#file-list button[data-path]:not([data-upload])")).toHaveCount(0);
+});
+
 test("GW example installs LALSuite and runs", async ({ page }) => {
   await runExample(page, "gw_examples/injection_examples/fast_tutorial.py");
   await expect(page.locator("#output .info", { hasText: /^LAL .* installed$/ })).toBeVisible();
