@@ -28,6 +28,11 @@ Pyodide. Background on the LALSuite Pyodide build is in `NOTES.md`.
     and at the end; files over 5 MB are read on request after the run. The
     page keeps them, so they outlast Stop. Saved PNGs are no longer copied
     into the output.
+  - Upload (output toolbar, or drop files anywhere on the page): the user's
+    own files (data, priors), listed at the top of the Files tab and written
+    next to the script before every run, after the example's data files, so
+    a script opens them by name. Dated in the past so they are not taken for
+    outputs. Kept in the page only: gone when it is closed.
   - Stop terminates the worker and starts a new one.
   - Header: toggles for the sidebar, editor and output (never both panes
     hidden; remembered per browser), bilby-dev logo, status, test-mode switch

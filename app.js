@@ -255,9 +255,11 @@ $("lightbox").addEventListener("click", (e) => { if (e.target.tagName !== "A") $
 // The files the latest run wrote, as the worker reports them while it runs
 // (worker.js, watchFiles): a list, and a preview of the one picked, which
 // follows its updates (a checkpoint plot redrawn by the sampler, say).
+// Files the user uploaded are listed above them.
 
 const files = new Map(); // path -> {size, mtime, bytes?, url?, missing?}
 let shownFile = null;
+let shownUpload = false; // whether shownFile names an upload
 let workerHasFiles = false; // false once Stop has replaced the worker
 
 const IMAGE_TYPES = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
@@ -269,7 +271,7 @@ function setFileList(list, reset = false) {
   if (reset) {
     for (const file of files.values()) if (file.url) URL.revokeObjectURL(file.url);
     files.clear();
-    shownFile = null;
+    if (!shownUpload) shownFile = null;
     workerHasFiles = true;
   }
   for (const { path, size, mtime } of list) {
@@ -299,11 +301,10 @@ function receiveFile({ path, mtime, bytes, missing }) {
     file.mtime = mtime;
   }
   drawFileList();
-  if (path === shownFile) drawFile();
+  if (path === shownFile && !shownUpload) drawFile();
 }
 
-function fileUrl(path) {
-  const file = files.get(path);
+function fileUrl(file, path) {
   file.url ||= URL.createObjectURL(new Blob([file.bytes], { type: IMAGE_TYPES[extension(path)] || "application/octet-stream" }));
   return file.url;
 }
@@ -311,38 +312,65 @@ function fileUrl(path) {
 function drawFileList() {
   const list = $("file-list");
   const paths = [...files.keys()].sort();
-  $("file-count").textContent = paths.length ? String(paths.length) : "";
+  const count = paths.length + uploads.size;
+  $("file-count").textContent = count ? String(count) : "";
   list.textContent = "";
-  for (const path of paths) {
-    const file = files.get(path);
-    const button = document.createElement("button");
-    button.dataset.path = path;
-    if (path === shownFile) button.setAttribute("aria-current", "true");
-    const name = document.createElement("span");
-    name.className = "name";
-    const slash = path.lastIndexOf("/") + 1;
-    const dir = document.createElement("span");
-    dir.className = "dir";
-    dir.textContent = path.slice(0, slash);
-    name.append(dir, path.slice(slash));
-    const meta = document.createElement("span");
-    meta.className = "meta";
-    meta.textContent = `${formatSize(file.size)} · ${new Date(file.mtime).toLocaleTimeString()}`;
-    button.append(name, meta);
-    list.appendChild(button);
+  if (uploads.size) {
+    list.appendChild(fileHeading("Uploaded: copied next to the script before each run"));
+    for (const name of [...uploads.keys()].sort()) {
+      const row = fileButton(name, uploads.get(name), true);
+      const remove = document.createElement("button");
+      remove.className = "remove";
+      remove.dataset.remove = name;
+      remove.textContent = "×";
+      remove.title = `Remove ${name}`;
+      remove.setAttribute("aria-label", remove.title);
+      const wrap = document.createElement("div");
+      wrap.className = "upload";
+      wrap.append(row, remove);
+      list.appendChild(wrap);
+    }
+    if (paths.length) list.appendChild(fileHeading("Written by the last run"));
   }
+  for (const path of paths) list.appendChild(fileButton(path, files.get(path), false));
+}
+
+function fileHeading(text) {
+  const heading = document.createElement("div");
+  heading.className = "heading";
+  heading.textContent = text;
+  return heading;
+}
+
+function fileButton(path, file, upload) {
+  const button = document.createElement("button");
+  button.dataset.path = path;
+  if (upload) button.dataset.upload = "";
+  if (path === shownFile && upload === shownUpload) button.setAttribute("aria-current", "true");
+  const name = document.createElement("span");
+  name.className = "name";
+  const slash = path.lastIndexOf("/") + 1;
+  const dir = document.createElement("span");
+  dir.className = "dir";
+  dir.textContent = path.slice(0, slash);
+  name.append(dir, path.slice(slash));
+  const meta = document.createElement("span");
+  meta.className = "meta";
+  meta.textContent = `${formatSize(file.size)} · ${new Date(file.mtime).toLocaleTimeString()}`;
+  button.append(name, meta);
+  return button;
 }
 
 function drawFile() {
   const view = $("file-view");
   view.textContent = "";
-  const file = files.get(shownFile);
+  const file = (shownUpload ? uploads : files).get(shownFile);
   if (!file) return;
   const head = document.createElement("div");
   head.className = "head";
   const title = document.createElement("strong");
   title.textContent = shownFile;
-  head.append(title, `${formatSize(file.size)} · written ${new Date(file.mtime).toLocaleTimeString()}`);
+  head.append(title, `${formatSize(file.size)} · ${shownUpload ? "uploaded" : "written"} ${new Date(file.mtime).toLocaleTimeString()}`);
   view.appendChild(head);
   if (!file.bytes) {
     const note = document.createElement("p");
@@ -363,7 +391,7 @@ function drawFile() {
   const ext = extension(shownFile);
   if (IMAGE_TYPES[ext]) {
     const img = document.createElement("img");
-    img.src = fileUrl(shownFile);
+    img.src = fileUrl(file, shownFile);
     img.alt = shownFile;
     img.addEventListener("click", () => openFigure(img.src, shownFile));
     view.appendChild(img);
@@ -388,14 +416,91 @@ function drawFile() {
 }
 
 $("file-list").addEventListener("click", (e) => {
+  const remove = e.target.closest("button[data-remove]");
+  if (remove) return removeUpload(remove.dataset.remove);
   const button = e.target.closest("button[data-path]");
   if (!button) return;
   shownFile = button.dataset.path;
+  shownUpload = "upload" in button.dataset;
   drawFileList();
-  $("file-list").querySelector(`[data-path="${CSS.escape(shownFile)}"]`).focus();
+  $("file-list").querySelector(`[data-path="${CSS.escape(shownFile)}"]${shownUpload ? "[data-upload]" : ":not([data-upload])"}`).focus();
   $("file-view").scrollTop = 0;
   drawFile();
 });
+
+// ---- uploads ---------------------------------------------------------------
+// Files the user adds (Upload, or dropped anywhere on the page): kept in this
+// page and written next to the script before every run, so it can open them
+// by name. They are not stored, so they are gone when the page is closed.
+
+const uploads = new Map(); // name -> {bytes, size, mtime, url?}
+
+async function addUploads(list) {
+  const added = [];
+  for (const file of list) {
+    if (!file.name || file.name.startsWith(".")) continue;
+    const old = uploads.get(file.name);
+    if (old?.url) URL.revokeObjectURL(old.url);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    uploads.set(file.name, { bytes, size: bytes.length, mtime: Date.now() });
+    added.push(file.name);
+  }
+  if (!added.length) return;
+  shownFile = added[0];
+  shownUpload = true;
+  showTab("files");
+  if (document.body.classList.contains("output-hidden")) setPaneHidden("output", false);
+  drawFileList();
+  drawFile();
+  announce(`Uploaded ${added.join(", ")}` + (running ? "; available from the next run" : ""));
+}
+
+function removeUpload(name) {
+  const file = uploads.get(name);
+  if (file?.url) URL.revokeObjectURL(file.url);
+  uploads.delete(name);
+  if (shownUpload && shownFile === name) {
+    shownFile = null;
+    shownUpload = false;
+    drawFile();
+  }
+  drawFileList();
+  announce(`Removed ${name}`);
+}
+
+$("upload").addEventListener("click", () => $("upload-input").click());
+$("upload-input").addEventListener("change", async (e) => {
+  await addUploads(e.target.files);
+  e.target.value = "";
+});
+// dropping files anywhere uploads them (captured before the editor, which
+// would otherwise paste a dropped text file into the script)
+let dragDepth = 0;
+const dragsFiles = (e) => e.dataTransfer?.types.includes("Files");
+document.addEventListener("dragenter", (e) => {
+  if (!dragsFiles(e)) return;
+  dragDepth++;
+  document.body.classList.add("dropping");
+}, true);
+document.addEventListener("dragleave", (e) => {
+  if (dragsFiles(e) && --dragDepth <= 0) {
+    dragDepth = 0;
+    document.body.classList.remove("dropping");
+  }
+}, true);
+document.addEventListener("dragover", (e) => {
+  if (!dragsFiles(e)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "copy";
+}, true);
+document.addEventListener("drop", (e) => {
+  if (!dragsFiles(e)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  dragDepth = 0;
+  document.body.classList.remove("dropping");
+  addUploads(e.dataTransfer.files);
+}, true);
 
 // Output / Files tabs (arrow keys move between them)
 const TABS = ["output", "files"];
@@ -516,6 +621,7 @@ function run() {
   worker.postMessage({
     type: "run", path: current.path, code: editor.getValue(), files: current.files, testMode,
     logLevel: $("log-level").value,
+    uploads: [...uploads].map(([name, { bytes }]) => ({ name, bytes })),
   });
 }
 

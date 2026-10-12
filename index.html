@@ -243,7 +243,7 @@
   body.test-mode #files { border-color: var(--warn-border); }
   #file-list { flex: none; max-height: 38%; overflow: auto; padding: 6px; border-bottom: 1px solid var(--border);
                font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; scrollbar-width: thin; }
-  #file-list:empty::before { content: "No files yet: the files a run writes (checkpoint plots, results) appear here as they change.";
+  #file-list:empty::before { content: "No files yet: the files a run writes (checkpoint plots, results) appear here as they change. Upload adds your own files for a script to open by name.";
                              display: block; padding: 6px; color: var(--muted); font-family: system-ui, sans-serif; }
   #file-list button { display: flex; width: 100%; gap: 10px; align-items: baseline; text-align: left;
                       font: inherit; padding: 3px 8px; border: none; border-radius: 5px; background: transparent; }
@@ -252,6 +252,18 @@
   #file-list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #file-list .dir { color: var(--muted); }
   #file-list .meta { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #file-list .heading { padding: 6px 8px 2px; color: var(--muted); font: 11px system-ui, sans-serif; }
+  #file-list .heading:not(:first-child) { margin-top: 4px; }
+  #file-list .upload { display: flex; align-items: center; }
+  #file-list .upload button[data-path] { flex: 1; min-width: 0; }
+  #file-list button.remove { width: auto; flex: none; padding: 1px 7px; color: var(--muted); }
+  #file-list button.remove:hover { color: var(--err); }
+  /* files dragged over the page: dropping them anywhere uploads them */
+  body.dropping::after { content: "Drop to upload: the files are copied next to the script before each run";
+                         position: fixed; inset: 8px; z-index: 60; display: flex; align-items: center;
+                         justify-content: center; padding: 16px; text-align: center; pointer-events: none;
+                         border: 2px dashed var(--accent); border-radius: 12px; font-size: 15px; color: var(--accent);
+                         background: color-mix(in srgb, var(--bg) 85%, transparent); }
   #file-view { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px; }
   #file-view:empty::before { content: "Pick a file to see it."; color: var(--muted); font-size: 12px; }
   #file-view .head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;
@@ -407,17 +419,19 @@
         <button role="tab" id="tab-output" aria-selected="true" aria-controls="output"
                 title="Output (runs in your browser with Pyodide; one CPU core)">Output</button>
         <button role="tab" id="tab-files" aria-selected="false" aria-controls="files" tabindex="-1"
-                title="The files the last run wrote, updated while it runs">Files<span id="file-count"></span></button>
+                title="The files the last run wrote, updated while it runs, and the files you uploaded">Files<span id="file-count"></span></button>
       </div>
       <span class="hint long">runs in your browser with Pyodide; one CPU core</span>
       <span class="spacer"></span>
+      <button id="upload" title="Add files (data, priors, ...) for your script to open by name; or drop them on the page">Upload</button>
+      <input id="upload-input" type="file" multiple hidden>
       <button id="download-results" title="Download the files the last run wrote, as a zip" disabled>Results</button>
       <button id="copy" class="output-only" title="Copy all output as text">Copy</button>
       <button id="clear" class="output-only">Clear</button>
     </div>
     <div id="output" role="tabpanel" aria-labelledby="tab-output" tabindex="0" aria-label="Program output"></div>
     <div id="files" role="tabpanel" aria-labelledby="tab-files" hidden>
-      <div id="file-list" aria-label="Files written by the run"></div>
+      <div id="file-list" aria-label="Uploaded files and files written by the run"></div>
       <div id="file-view" tabindex="0" aria-label="File preview" aria-live="off"></div>
     </div>
     <!-- run started, finished or failed, for screen readers; the output itself
